@@ -1,26 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Define your palette */
+  --color-brand-orange: #f56e0f;
+  --color-dark-gray: #151419;
+  --color-light-gray: #fbfbfb;
+  --color-muted: #878787;
+
+  /* Semantic variables (Light Mode Default) */
+  --background: var(--color-light-gray);
+  --foreground: var(--foreground2);
+  --foreground2: #1b1b1e;
+  --foreground3: #262626;
+
+  /* Font Variables */
+  --font-geist-sans: "Geist Sans", sans-serif;
+  --font-geist-mono: "Geist Mono", monospace;
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--color-dark-gray);
+    --foreground: var(--color-brand-orange);
+  }
 }
 
 @theme inline {
+  /* Map Tailwind's design tokens to your CSS variables */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: var(--color-muted);
+  --color-bwhite: var(--color-light-gray);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Global Styles */
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
