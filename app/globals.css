@@ -32,6 +32,9 @@
   --color-foreground: var(--foreground);
   --color-brand: var(--color-muted);
   --color-bwhite: var(--color-light-gray);
+
+  --color-muted: var(--color-muted);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

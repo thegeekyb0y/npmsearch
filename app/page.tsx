@@ -1,50 +1,47 @@
-import React from "react";
-
-interface NpmPackage {
-  name: string;
-  description: string;
-  "dist-tags": {
-    latest: string;
-  };
-  homepage: string;
-}
-
-async function getNpmData(packageName: string): Promise<NpmPackage> {
-  const res = await fetch(`https://registry.npmjs.org/${packageName}`, {
-    next: { revalidate: 60 },
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch NPM data");
-  }
-
-  return res.json();
-}
-
-export default async function Home() {
-  const data = await getNpmData("ws");
-
+export default function HomePage() {
   return (
-    <main className="p-8 min-h-screen bg-background">
-      <div className="max-w-md mx-auto border border-muted/20 p-6 shadow-sm bg-foreground2">
-        <h1 className="text-2xl font-bold mb-2 text-foreground">{data.name}</h1>
-
-        <p className="text-bwhite mb-4">{data.description}</p>
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="bg-brand/10 text-brand px-2 py-1 rounded font-mono">
-            v{data["dist-tags"].latest}
-          </span>
-
-          <a
-            href={data.homepage}
-            className="text-brand hover:brightness-125 transition-all"
-            target="_blank"
+    <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      <h1 className="font-bold text-5xl text-center font-sans text-white py-4 ">
+        npmSearch
+      </h1>
+      <p className="text-muted text-lg mb-12 italic">
+        a better browser for the npm registry
+      </p>
+      <form action="/search" method="GET">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="/ search packages"
+            name="q"
+            autoFocus
+            className="text-white px-4 py-4 rounded-sm border-0 hover:border bg-gray-800 "
+          ></input>
+          <button
+            type="submit"
+            className="text-white bg-gray-500 px-2 font-medium hover:bg-gray-600 transition rounded-sm"
           >
-            Visit Homepage
-          </a>
+            Search
+          </button>
         </div>
+      </form>
+
+      <div className="mt-16 flex gap-4 text-muted  text-sm">
+        <a href="/package/react" className="hover:text-white">
+          react
+        </a>
+        <span>•</span>
+        <a href="/package/next" className="hover:text-white">
+          next
+        </a>
+        <span>•</span>
+        <a href="/package/vue" className="hover:text-white">
+          vue
+        </a>
+        <span>•</span>
+        <a href="/package/typescript" className="hover:text-white">
+          typescript
+        </a>
       </div>
-    </main>
+    </div>
   );
 }
