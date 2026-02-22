@@ -14,7 +14,7 @@ export default function HomePage() {
             placeholder="/ search packages"
             name="q"
             autoFocus
-            className="text-white px-4 py-4 rounded-sm border-0 hover:border bg-gray-800 "
+            className="text-white px-4 py-4 rounded-sm border border-gray-900 hover:border hover:border-white bg-gray-800 "
           ></input>
           <button
             type="submit"
