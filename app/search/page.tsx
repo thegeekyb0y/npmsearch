@@ -116,7 +116,7 @@ export default async function SearchPage({
       {/* Main Content */}
       <main className="mx-auto p-4 max-w-4xl pt-8">
         <p className="text-gray-500 mb-6 text-sm">
-          Found {data.total?.toLocaleString()} packages for "
+          Found {data.total?.toLocaleString("en-US")} packages for "
           <span className="text-white">{q}</span>"
         </p>
 
