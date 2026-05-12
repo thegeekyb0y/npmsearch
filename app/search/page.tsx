@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { getBaseUrl } from "../lib/get-base-url";
 import {
-  AppHeader,
   AppShell,
   ExactBadge,
   ExternalLink,
@@ -8,6 +8,7 @@ import {
   StatusPanel,
   VersionBadge,
 } from "../components/ui";
+import { FadeIn, StaggerItem, StaggerList } from "../components/motion";
 
 interface Package {
   name: string;
@@ -32,8 +33,7 @@ interface SearchResponse {
 }
 
 function formatDownloads(num?: number) {
-  if (typeof num !== "number" || Number.isNaN(num))
-    return "Downloads unavailable";
+  if (typeof num !== "number" || Number.isNaN(num)) return "Downloads unavailable";
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M / wk`;
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K / wk`;
   return `${num} / wk`;
@@ -50,7 +50,6 @@ export default async function SearchPage({
   if (!query) {
     return (
       <AppShell>
-        <AppHeader />
         <PageContainer className="py-6">
           <StatusPanel
             title="Search the npm registry"
@@ -64,8 +63,9 @@ export default async function SearchPage({
   let data: SearchResponse = { total: 0, results: [] };
 
   try {
+    const baseUrl = await getBaseUrl();
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/search?q=${encodeURIComponent(query)}`,
+      `${baseUrl}/api/search?q=${encodeURIComponent(query)}`,
       { cache: "no-store" },
     );
     if (!res.ok) throw new Error("Failed to fetch search results");
@@ -90,7 +90,6 @@ export default async function SearchPage({
   } catch {
     return (
       <AppShell>
-        <AppHeader query={query} />
         <PageContainer className="py-6">
           <StatusPanel
             error
@@ -108,10 +107,9 @@ export default async function SearchPage({
 
   return (
     <AppShell>
-      <AppHeader query={query} />
       <PageContainer className="py-6">
         <main className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
+          <FadeIn className="flex flex-col gap-2">
             <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-text-secondary">
               Search results
             </p>
@@ -119,11 +117,10 @@ export default async function SearchPage({
               {summaryCount.toLocaleString("en-US")} packages for &quot;{query}
               &quot;
             </h1>
-            <p className="m-0 text-[13px] leading-normal text-text-muted">
-              Ranked from the npm ecosystem with version and weekly download
-              context.
+            <p className="m-0 text-[13px] leading-[1.5] text-text-muted">
+              Ranked from the npm ecosystem with version and weekly download context.
             </p>
-          </div>
+          </FadeIn>
 
           {results.length === 0 ? (
             <StatusPanel
@@ -131,61 +128,60 @@ export default async function SearchPage({
               message={`No results matched "${query}". Try a broader term or a different package name.`}
             />
           ) : (
-            <div className="grid gap-4 md:gap-5">
+            <StaggerList className="grid gap-4 md:gap-5">
               {results.map((item) => {
                 const isExactMatch =
                   item.package.name.toLowerCase() === query.toLowerCase();
+
                 return (
-                  <article
-                    key={item.package.name}
-                    className="flex flex-col gap-4 rounded-md border border-border-subtle bg-surface p-5 transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#141414]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <Link
-                            href={`/package/${item.package.name}`}
-                            className="min-w-0 wrap-break-word text-[22px] leading-none font-semibold tracking-[-0.01em] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
-                          >
-                            {item.package.name}
-                          </Link>
-                          {isExactMatch ? <ExactBadge /> : null}
+                  <StaggerItem key={item.package.name}>
+                    <article className="group relative flex flex-col gap-4 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface p-5 transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#141414]">
+                      <span className="absolute inset-y-0 left-0 w-[2px] bg-brand opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Link
+                              href={`/package/${item.package.name}`}
+                              className="min-w-0 break-words text-[22px] leading-none font-semibold tracking-[-0.01em] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
+                            >
+                              {item.package.name}
+                            </Link>
+                            {isExactMatch ? <ExactBadge /> : null}
+                          </div>
+                          <p className="m-0 text-[14px] leading-[1.6] text-text-secondary">
+                            {item.package.description?.trim() ||
+                              "No description provided."}
+                          </p>
                         </div>
-                        <p className="m-0 text-[14px] leading-[1.6] text-text-secondary">
-                          {item.package.description?.trim() ||
-                            "No description provided."}
-                        </p>
+                        <VersionBadge version={item.package.version} />
                       </div>
-                      <VersionBadge version={item.package.version} />
-                    </div>
 
-                    <hr className="m-0 border-0 border-t border-[#1a1a1a]" />
+                      <hr className="m-0 border-0 border-t border-[#1a1a1a]" />
 
-                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <ExternalLink href={item.package.links.npm}>
-                          npm
-                        </ExternalLink>
-                        {item.package.links.homepage ? (
-                          <ExternalLink href={item.package.links.homepage}>
-                            homepage
-                          </ExternalLink>
-                        ) : null}
-                        {item.package.links.repository ? (
-                          <ExternalLink href={item.package.links.repository}>
-                            repository
-                          </ExternalLink>
-                        ) : null}
+                      <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                          <ExternalLink href={item.package.links.npm}>npm</ExternalLink>
+                          {item.package.links.homepage ? (
+                            <ExternalLink href={item.package.links.homepage}>
+                              homepage
+                            </ExternalLink>
+                          ) : null}
+                          {item.package.links.repository ? (
+                            <ExternalLink href={item.package.links.repository}>
+                              repository
+                            </ExternalLink>
+                          ) : null}
+                        </div>
+                        <div className="inline-flex items-center gap-2 font-mono text-[13px] text-text-secondary">
+                          <span className="text-brand">&#8595;</span>
+                          <span>{formatDownloads(item.weeklyDownloads)}</span>
+                        </div>
                       </div>
-                      <div className="inline-flex items-center gap-2 font-mono text-[13px] text-text-secondary">
-                        <span className="text-brand">↓</span>
-                        <span>{formatDownloads(item.weeklyDownloads)}</span>
-                      </div>
-                    </div>
-                  </article>
+                    </article>
+                  </StaggerItem>
                 );
               })}
-            </div>
+            </StaggerList>
           )}
         </main>
       </PageContainer>
