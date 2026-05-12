@@ -32,7 +32,7 @@ export default async function PackagePage({
   const { name } = await params;
   const decodedName = decodeURIComponent(name);
   const res = await fetch(
-    `http://localhost:3000/api/package/${encodeURIComponent(decodedName)}`,
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/package/${encodeURIComponent(decodedName)}`,
     { cache: "no-store" },
   );
 

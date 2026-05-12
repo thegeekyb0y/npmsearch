@@ -65,7 +65,7 @@ export default async function SearchPage({
 
   try {
     const res = await fetch(
-      `http://localhost:3000/api/search?q=${encodeURIComponent(query)}`,
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/search?q=${encodeURIComponent(query)}`,
       { cache: "no-store" },
     );
     if (!res.ok) throw new Error("Failed to fetch search results");

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     const newData = await fetch(`https://api.npms.io/v2/search?q=${query}`, {
       headers: {
-        Accept: "aplication/json",
+        Accept: "application/json",
       },
     });
 
