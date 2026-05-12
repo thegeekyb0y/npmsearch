@@ -1,9 +1,18 @@
-import React from "react";
+import Link from "next/link";
+import {
+  AppHeader,
+  AppShell,
+  ExactBadge,
+  ExternalLink,
+  PageContainer,
+  StatusPanel,
+  VersionBadge,
+} from "../components/ui";
 
 interface Package {
   name: string;
   version: string;
-  description: string;
+  description?: string;
   links: {
     npm: string;
     homepage?: string;
@@ -13,15 +22,21 @@ interface Package {
 
 interface SearchResult {
   package: Package;
-  score: {
-    final: number;
-  };
+  score: { final: number };
   weeklyDownloads?: number;
 }
 
 interface SearchResponse {
-  total: number;
+  total?: number;
   results: SearchResult[];
+}
+
+function formatDownloads(num?: number) {
+  if (typeof num !== "number" || Number.isNaN(num))
+    return "Downloads unavailable";
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M / wk`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K / wk`;
+  return `${num} / wk`;
 }
 
 export default async function SearchPage({
@@ -30,172 +45,150 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
+  const query = q?.trim();
 
-  if (!q) {
+  if (!query) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono">
-        <p className="text-gray-500 text-xl">/ waiting for query...</p>
-      </div>
+      <AppShell>
+        <AppHeader />
+        <PageContainer className="py-6">
+          <StatusPanel
+            title="Search the npm registry"
+            message="Enter a package name, scope, or keyword to explore results."
+          />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   let data: SearchResponse = { total: 0, results: [] };
 
   try {
-    const res = await fetch(`http://localhost:3000/api/search?q=${q}`, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) throw new Error("Failed");
+    const res = await fetch(
+      `http://localhost:3000/api/search?q=${encodeURIComponent(query)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) throw new Error("Failed to fetch search results");
     data = await res.json();
 
-    // 2. PRO TRICK: Downloads Fetch karna (Parallel API Calls)
-    if (data.results && data.results.length > 0) {
-      // Promise.all ek saath saari API calls karta hai (Super Fast)
-
+    if (data.results.length > 0) {
       const downloadPromises = data.results.map((item) =>
         fetch(
           `https://api.npmjs.org/downloads/point/last-week/${item.package.name}`,
         )
-          .then((res) => (res.ok ? res.json() : { downloads: 0 }))
-          .catch(() => ({ downloads: 0 })),
+          .then((downloadRes) =>
+            downloadRes.ok ? downloadRes.json() : { downloads: undefined },
+          )
+          .catch(() => ({ downloads: undefined })),
       );
-
       const downloadStats = await Promise.all(downloadPromises);
-
-      // 3. Downloads ko original data ke sath merge kar do
       data.results = data.results.map((item, index) => ({
         ...item,
-        weeklyDownloads: downloadStats[index]?.downloads || 0,
+        weeklyDownloads: downloadStats[index]?.downloads,
       }));
     }
-  } catch (e) {
+  } catch {
     return (
-      <div className="text-red-500 p-10 font-mono">
-        Error: API Failed (Check Redis/Server)
-      </div>
+      <AppShell>
+        <AppHeader query={query} />
+        <PageContainer className="py-6">
+          <StatusPanel
+            error
+            title="Search is unavailable"
+            message="We couldn't load registry results right now. Try the same query again in a moment."
+          />
+        </PageContainer>
+      </AppShell>
     );
   }
 
-  const results = data.results || [];
-
-  // Helper function numbers ko sundar dikhane ke liye (e.g., 1200000 -> 1.2M)
-  const formatDownloads = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-    return num.toString();
-  };
+  const results = data.results ?? [];
+  const summaryCount =
+    typeof data.total === "number" ? data.total : results.length;
 
   return (
-    <div className="min-h-screen font-mono bg-black text-white">
-      {/* Header Same Rahega */}
-      <header className="border-b border-gray-800 p-4 sticky top-0 bg-black/95 backdrop-blur z-10">
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <a href="/" className="font-bold text-brand hover:text-gray-200">
-            ~/npmsearch
-          </a>
+    <AppShell>
+      <AppHeader query={query} />
+      <PageContainer className="py-6">
+        <main className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-text-secondary">
+              Search results
+            </p>
+            <h1 className="m-0 text-[18px] leading-[1.2] font-semibold tracking-[-0.01em] text-text-primary">
+              {summaryCount.toLocaleString("en-US")} packages for &quot;{query}
+              &quot;
+            </h1>
+            <p className="m-0 text-[13px] leading-normal text-text-muted">
+              Ranked from the npm ecosystem with version and weekly download
+              context.
+            </p>
+          </div>
 
-          <form className="flex-1 flex gap-2">
-            <input
-              type="text"
-              name="q"
-              defaultValue={q}
-              placeholder="search packages..."
-              className="w-full bg-gray-900 border border-gray-700 text-gray-200 px-4 py-2 rounded focus:outline-none focus:border-white transition-colors placeholder:text-gray-600"
+          {results.length === 0 ? (
+            <StatusPanel
+              title="No packages found"
+              message={`No results matched "${query}". Try a broader term or a different package name.`}
             />
-            <button
-              type="submit"
-              className="bg-white text-black px-6 py-2 rounded font-bold hover:bg-gray-200 transition-colors"
-            >
-              Go
-            </button>
-          </form>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="mx-auto p-4 max-w-4xl pt-8">
-        <p className="text-gray-500 mb-6 text-sm">
-          Found {data.total?.toLocaleString("en-US")} packages for "
-          <span className="text-white">{q}</span>"
-        </p>
-
-        <div className="space-y-4">
-          {results.map((item) => (
-            <div
-              key={item.package.name}
-              className="border border-gray-800 p-5 rounded-lg hover:border-brand/50 hover:bg-gray-900/30 transition-all group"
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-100 group-hover:text-brand transition-colors">
-                    {item.package.name}
-                  </h2>
-                  {item.package.name.toLowerCase() ===
-                    q.trim().toLowerCase() && (
-                    <span className="bg-brand/20 text-brand border border-brand/30 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
-                      Exact
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded">
-                  v{item.package.version}
-                </span>
-              </div>
-
-              <p className="text-gray-400 mt-2 text-sm leading-relaxed line-clamp-2">
-                {item.package.description}
-              </p>
-
-              {/* === BOTTOM SECTION: Links & Exact Downloads === */}
-              <div className="mt-4 flex items-center justify-between border-t border-gray-800/50 pt-4">
-                <div className="flex gap-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  <a
-                    href={item.package.links.npm}
-                    target="_blank"
-                    className="hover:text-white transition-colors"
+          ) : (
+            <div className="grid gap-4 md:gap-5">
+              {results.map((item) => {
+                const isExactMatch =
+                  item.package.name.toLowerCase() === query.toLowerCase();
+                return (
+                  <article
+                    key={item.package.name}
+                    className="flex flex-col gap-4 rounded-md border border-border-subtle bg-surface p-5 transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#141414]"
                   >
-                    NPM ↗
-                  </a>
-                  {item.package.links.homepage && (
-                    <a
-                      href={item.package.links.homepage}
-                      target="_blank"
-                      className="hover:text-white transition-colors"
-                    >
-                      Homepage ↗
-                    </a>
-                  )}
-                </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link
+                            href={`/package/${item.package.name}`}
+                            className="min-w-0 wrap-break-word text-[22px] leading-none font-semibold tracking-[-0.01em] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
+                          >
+                            {item.package.name}
+                          </Link>
+                          {isExactMatch ? <ExactBadge /> : null}
+                        </div>
+                        <p className="m-0 text-[14px] leading-[1.6] text-text-secondary">
+                          {item.package.description?.trim() ||
+                            "No description provided."}
+                        </p>
+                      </div>
+                      <VersionBadge version={item.package.version} />
+                    </div>
 
-                {/* EXACT WEEKLY DOWNLOADS */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 font-mono">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="w-4 h-4 text-brand"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-                    />
-                  </svg>
+                    <hr className="m-0 border-0 border-t border-[#1a1a1a]" />
 
-                  <span>
-                    {item.weeklyDownloads
-                      ? `${formatDownloads(item.weeklyDownloads)} /wk`
-                      : "NA"}
-                  </span>
-                </div>
-              </div>
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <ExternalLink href={item.package.links.npm}>
+                          npm
+                        </ExternalLink>
+                        {item.package.links.homepage ? (
+                          <ExternalLink href={item.package.links.homepage}>
+                            homepage
+                          </ExternalLink>
+                        ) : null}
+                        {item.package.links.repository ? (
+                          <ExternalLink href={item.package.links.repository}>
+                            repository
+                          </ExternalLink>
+                        ) : null}
+                      </div>
+                      <div className="inline-flex items-center gap-2 font-mono text-[13px] text-text-secondary">
+                        <span className="text-brand">↓</span>
+                        <span>{formatDownloads(item.weeklyDownloads)}</span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </main>
-    </div>
+          )}
+        </main>
+      </PageContainer>
+    </AppShell>
   );
 }

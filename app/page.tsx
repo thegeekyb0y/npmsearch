@@ -1,47 +1,48 @@
+import Link from "next/link";
+import { AppShell, PageContainer, SearchForm } from "./components/ui";
+
+const suggestedPackages = ["react", "next", "typescript", "tailwindcss", "zod"];
+
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
-      <h1 className="font-bold text-5xl text-center font-sans text-white py-4 ">
-        npmSearch
-      </h1>
-      <p className="text-muted text-lg mb-12 italic">
-        a better browser for the npm registry
-      </p>
-      <form action="/search" method="GET">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="/ search packages"
-            name="q"
-            autoFocus
-            className="text-white px-4 py-4 rounded-sm border border-gray-900 hover:border hover:border-white bg-gray-800 "
-          ></input>
-          <button
-            type="submit"
-            className="text-white bg-gray-500 px-2 font-medium hover:bg-gray-600 transition rounded-sm"
-          >
-            Search
-          </button>
-        </div>
-      </form>
+    <AppShell>
+      <PageContainer className="flex min-h-screen items-center py-8">
+        <main className="w-full max-w-140">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-text-secondary">
+                npm registry browser
+              </p>
+              <h1 className="m-0 text-[24px] leading-[1.1] font-semibold tracking-[-0.01em] text-text-primary md:text-[32px]">
+                Find packages with a cleaner, faster view.
+              </h1>
+              <p className="m-0 max-w-[48ch] text-[16px] leading-[1.6] text-text-secondary">
+                Search the npm ecosystem with a sharper layout, clearer
+                metadata, and package pages built for real work.
+              </p>
+            </div>
 
-      <div className="mt-16 flex gap-4 text-muted  text-sm">
-        <a href="/package/react" className="hover:text-white">
-          react
-        </a>
-        <span>•</span>
-        <a href="/package/next" className="hover:text-white">
-          next
-        </a>
-        <span>•</span>
-        <a href="/package/vue" className="hover:text-white">
-          vue
-        </a>
-        <span>•</span>
-        <a href="/package/typescript" className="hover:text-white">
-          typescript
-        </a>
-      </div>
-    </div>
+            <SearchForm placeholder="Search packages, scopes, and libraries" />
+
+            {suggestedPackages.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border-subtle pt-4">
+                <span className="text-[13px] leading-normal text-text-muted">
+                  Popular
+                </span>
+                {suggestedPackages.map((pkg) => (
+                  <Link
+                    key={pkg}
+                    href={`/package/${pkg}`}
+                    className="text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary"
+                  >
+                    {pkg}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </main>
+      </PageContainer>
+    </AppShell>
   );
 }
