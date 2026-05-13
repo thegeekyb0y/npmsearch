@@ -74,7 +74,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
         <motion.div
           className="mx-auto w-full"
           initial={false}
-          animate={{ maxWidth: isHome ? 560 : 1080 }}
+          animate={{ maxWidth: 1080 }}
           transition={shellTransition}
         >
           <motion.div
@@ -83,7 +83,11 @@ export function AppFrame({ children }: { children: ReactNode }) {
             transition={shellTransition}
           >
             <motion.div
-              className={isHome ? "flex flex-col gap-6" : "flex min-w-0 flex-1 flex-wrap items-center gap-4"}
+              className={
+                isHome
+                  ? "flex max-w-[560px] flex-col gap-6 md:mr-auto"
+                  : "flex min-w-0 flex-1 flex-wrap items-center gap-4"
+              }
               layout
               transition={shellTransition}
             >

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { Suspense } from "react";
 import { AppFrame } from "./components/app-frame";
 import "./globals.css";
 
@@ -32,7 +33,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AppFrame>{children}</AppFrame>
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-background text-text-primary">
+              {children}
+            </div>
+          }
+        >
+          <AppFrame>{children}</AppFrame>
+        </Suspense>
         <Analytics />
       </body>
     </html>
