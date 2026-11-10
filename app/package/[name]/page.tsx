@@ -1,32 +1,39 @@
 import {
-  ArrowDownToLine,
-  Boxes,
-  CalendarDays,
+  CircleAlert,
   ExternalLinkIcon,
+  GitFork,
+  Github,
   Globe,
+  House,
   Package2,
-  ShieldCheck,
-  Sparkles,
   Star,
   Users,
-  Workflow,
 } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { CopyInstallButton } from "@/app/components/copy-install-button";
 import { DownloadSparkline } from "@/app/components/download-sparkline";
-import { FadeIn } from "@/app/components/motion";
+import { InstallBlock } from "@/app/components/install-block";
+import { MetaStrip } from "@/app/components/meta-strip";
+import { RailSection } from "@/app/components/rail-section";
+import { TabRail } from "@/app/components/tab-rail";
 import {
   AppShell,
-  ExternalLink,
   PageContainer,
   SectionTitle,
   StatusPanel,
   VersionBadge,
 } from "@/app/components/ui";
+import {
+  formatBytes,
+  formatCompactNumber,
+  formatDate,
+  formatRangeLabel,
+  normalizeRepositoryUrl,
+} from "@/app/lib/format";
 import { getBaseUrl } from "@/app/lib/get-base-url";
+import type { MetaItem, TabItem } from "@/app/lib/types";
 
 type Maintainer = { name: string; email?: string };
 type DownloadPoint = { day?: string; downloads: number };
@@ -66,59 +73,6 @@ interface NpmPackagePageData {
     downloadRange?: { start?: string; end?: string };
     publishedAt?: string;
   };
-}
-
-function normalizeRepositoryUrl(url?: string) {
-  if (!url) return undefined;
-  return url.replace(/^git\+/, "").replace(/\.git$/, "");
-}
-
-function formatDate(value?: string) {
-  if (!value) return "Unknown";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatRangeLabel(start?: string, end?: string) {
-  if (!start || !end) return "Last 7 days";
-  return `${formatDate(start)} to ${formatDate(end)}`;
-}
-
-function formatBytes(value?: number) {
-  if (!value) return "Unknown";
-  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-  if (value >= 1024) return `${(value / 1024).toFixed(1)} kB`;
-  return `${value} B`;
-}
-
-function formatCompactNumber(value?: number) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "Unknown";
-  return new Intl.NumberFormat("en-US", { notation: "compact" }).format(value);
-}
-
-function MetricTile({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof ShieldCheck;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-3 py-3 transition-colors duration-150 ease-out hover:border-border-strong">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-text-muted" strokeWidth={1.8} />
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-muted">
-          {label}
-        </span>
-      </div>
-      <p className="mt-2 truncate text-[14px] font-medium text-text-primary">{value}</p>
-    </div>
-  );
 }
 
 const markdownComponents: Components = {
@@ -172,7 +126,7 @@ const markdownComponents: Components = {
       <table className="min-w-full border-collapse text-left text-[13px]">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="bg-[#131313] text-text-primary">{children}</thead>,
+  thead: ({ children }) => <thead className="bg-surface-raised text-text-primary">{children}</thead>,
   th: ({ children }) => (
     <th className="border-b border-border-subtle px-3 py-2.5 font-medium">{children}</th>
   ),
@@ -188,8 +142,8 @@ const markdownComponents: Components = {
 
     if (match) {
       return (
-        <div className="my-6 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-[#101010]">
-          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2 text-[11px] uppercase tracking-[0.08em] text-text-muted">
+        <div className="my-6 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface-code">
+          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2 text-[11px] uppercase tracking-[0.08em] text-text-secondary">
             <span>{match[1]}</span>
             <span>code</span>
           </div>
@@ -200,7 +154,7 @@ const markdownComponents: Components = {
             customStyle={{
               margin: 0,
               padding: "14px",
-              background: "#101010",
+              background: "#0d0d0d",
               fontSize: "13px",
               lineHeight: 1.65,
             }}
@@ -217,7 +171,7 @@ const markdownComponents: Components = {
     }
 
     return (
-      <code className="rounded-[var(--radius-sm)] border border-border-subtle bg-[#151515] px-[5px] py-px font-mono text-[13px] text-text-primary">
+      <code className="rounded-[var(--radius-sm)] border border-border-subtle bg-surface-raised px-[5px] py-px font-mono text-[13px] text-text-primary">
         {children}
       </code>
     );
@@ -252,158 +206,166 @@ export default async function PackagePage({
   }
 
   const data: NpmPackagePageData = await res.json();
+  const packageName = data.name ?? decodedName;
   const latestVersion = data["dist-tags"]?.latest || "Unknown";
-  const installCommand = `npm i ${data.name}`;
   const repositoryUrl = normalizeRepositoryUrl(data.repository?.url);
+  const repositoryLabel = repositoryUrl
+    ?.replace(/^https?:\/\/[^/]+\//, "")
+    .replace(/\/$/, "");
   const packageMeta = data._meta ?? {};
   const latestInfo = data.latestVersionInfo;
   const depsCount = Object.keys(latestInfo?.dependencies ?? {}).length;
-  const featureBadges = [
-    latestInfo?.engines?.node ? "Node" : null,
-    depsCount ? "Dependencies" : null,
-    repositoryUrl ? "Open Source" : null,
-  ].filter(Boolean) as string[];
+  const nodeRange = latestInfo?.engines?.node;
+  const license = latestInfo?.license ?? data.license ?? "Unknown";
+
+  const metaItems: MetaItem[] = [
+    { label: "license", value: license },
+    { label: "deps", value: String(depsCount) },
+    {
+      label: "size",
+      value: formatBytes(latestInfo?.dist?.unpackedSize),
+      hint: "Unpacked package size. Install size includes dependencies.",
+    },
+    { label: "node", value: nodeRange ?? "any" },
+    { label: "published", value: formatDate(packageMeta.publishedAt) },
+  ];
+
+  const tabs: TabItem[] = [
+    { href: "#overview", label: "overview", active: true },
+    { href: "#readme", label: "readme" },
+  ];
 
   return (
     <AppShell>
-      <PageContainer className="py-4">
-        <main className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
+      <PageContainer className="py-6">
+        <main className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
           <div className="min-w-0 space-y-4">
-            <FadeIn className="space-y-4">
-              <section className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4 md:px-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="min-w-0 break-words text-[30px] leading-none font-semibold tracking-[-0.02em] text-text-primary md:text-[34px]">
-                        {data.name}
-                      </h1>
-                      <VersionBadge version={latestVersion} />
-                    </div>
+            <div className="space-y-4">
+              <section id="overview" className="min-w-0 border-b border-border-subtle pb-5">
+                <p className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-text-label">
+                  package
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <h1 className="min-w-0 break-words font-mono text-[clamp(30px,5vw,44px)] leading-none font-semibold tracking-[-0.03em] text-text-primary">
+                    {packageName}
+                  </h1>
+                  <VersionBadge version={latestVersion} />
+                </div>
 
-                    <p className="m-0 max-w-[72ch] text-[15px] leading-7 text-text-secondary">
-                      {data.description?.trim() || "No description provided."}
-                    </p>
+                <p className="mt-3 mb-0 max-w-[72ch] text-[14px] leading-7 text-text-secondary">
+                  {data.description?.trim() || "No description provided."}
+                </p>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-text-secondary">
-                      {repositoryUrl ? (
-                        <ExternalLink href={repositoryUrl}>repository</ExternalLink>
-                      ) : null}
-                      {data.homepage ? <ExternalLink href={data.homepage}>homepage</ExternalLink> : null}
-                      <ExternalLink
-                        href={`https://www.npmjs.com/package/${encodeURIComponent(data.name ?? decodedName)}`}
-                      >
-                        npm
-                      </ExternalLink>
-                      {packageMeta.issues ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-text-muted" strokeWidth={1.8} />
-                          {formatCompactNumber(packageMeta.issues)} issues
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {featureBadges.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {featureBadges.map((badge) => (
-                          <span
-                            key={badge}
-                            className="inline-flex min-h-7 items-center rounded-[var(--radius-md)] border border-border-strong bg-[#151515] px-2.5 text-[10px] font-medium uppercase tracking-[0.08em] text-text-secondary"
-                          >
-                            {badge}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {repositoryUrl ? (
-                      <a
-                        href={repositoryUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border border-border-subtle bg-transparent px-3 text-[12px] font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#151515]"
-                      >
-                        repository
-                      </a>
-                    ) : null}
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[12px] text-text-secondary">
+                  {repositoryUrl ? (
                     <a
-                      href={`https://www.npmjs.com/package/${encodeURIComponent(data.name ?? decodedName)}`}
+                      href={repositoryUrl}
                       target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border border-border-subtle bg-transparent px-3 text-[12px] font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#151515]"
+                      rel="noreferrer noopener"
+                      className="inline-flex min-h-11 min-w-0 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
                     >
-                      npm
+                      <Github
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 shrink-0 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      <span className="max-w-[220px] truncate">
+                        {repositoryLabel || "repository"}
+                      </span>
                     </a>
-                  </div>
+                  ) : null}
+                  {typeof packageMeta.stars === "number" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Star
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      {formatCompactNumber(packageMeta.stars)}
+                    </span>
+                  ) : null}
+                  {typeof packageMeta.forks === "number" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <GitFork
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      {formatCompactNumber(packageMeta.forks)}
+                    </span>
+                  ) : null}
+                  {data.homepage ? (
+                    <a
+                      href={data.homepage}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex min-h-11 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
+                    >
+                      <House
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      homepage
+                    </a>
+                  ) : null}
+                  {typeof packageMeta.issues === "number" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <CircleAlert
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      {formatCompactNumber(packageMeta.issues)} issues
+                    </span>
+                  ) : null}
+                  <a
+                    href={`https://www.npmjs.com/package/${encodeURIComponent(packageName)}`}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
+                  >
+                    <Package2
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 text-text-muted"
+                      strokeWidth={1.8}
+                    />
+                    npm
+                  </a>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                    {nodeRange ? `node ${nodeRange}` : "node any"}
+                  </span>
+                  <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                    {depsCount} deps
+                  </span>
+                  {repositoryUrl ? (
+                    <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                      open source
+                    </span>
+                  ) : null}
                 </div>
               </section>
 
-              <section className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
-                <MetricTile
-                  icon={ArrowDownToLine}
-                  label="Downloads"
-                  value={formatCompactNumber(packageMeta.weeklyDownloads)}
-                />
-                <MetricTile
-                  icon={Star}
-                  label="Stars"
-                  value={formatCompactNumber(packageMeta.stars)}
-                />
-                <MetricTile
-                  icon={Boxes}
-                  label="Dependents"
-                  value={formatCompactNumber(packageMeta.dependents)}
-                />
-                <MetricTile
-                  icon={Workflow}
-                  label="Deps"
-                  value={String(depsCount)}
-                />
-                <MetricTile
-                  icon={Package2}
-                  label="Size"
-                  value={formatBytes(latestInfo?.dist?.unpackedSize)}
-                />
-                <MetricTile
-                  icon={ShieldCheck}
-                  label="License"
-                  value={latestInfo?.license ?? data.license ?? "Unknown"}
-                />
-                <MetricTile
-                  icon={CalendarDays}
-                  label="Published"
-                  value={formatDate(packageMeta.publishedAt)}
-                />
-              </section>
+              <TabRail items={tabs} />
 
-              <section className="rounded-[var(--radius-md)] border border-[#1a1a1a] bg-surface-code px-4 py-3.5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="m-0 text-[10px] font-medium uppercase tracking-[0.08em] text-text-muted">
-                      Install
-                    </p>
-                    <code className="block min-w-0 overflow-x-auto font-mono text-[14px] text-text-primary">
-                      {installCommand}
-                    </code>
-                  </div>
-                  <CopyInstallButton command={installCommand} />
-                </div>
-              </section>
+              <MetaStrip items={metaItems} />
 
-              <section
-                id="readme"
-                className="min-w-0 rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4 md:px-5"
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+              <div className="py-5">
+                <InstallBlock packageName={packageName} />
+              </div>
+
+              <section id="readme" className="min-w-0 pt-2">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-border-subtle pb-3">
                   <SectionTitle
                     title="README"
                     subtitle="GitHub-flavored package documentation."
                   />
-                  <div className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-border-subtle px-3 py-2 text-[11px] text-text-secondary">
-                    <Package2 className="h-4 w-4 text-text-muted" strokeWidth={1.8} />
-                    <span>formatted markdown</span>
-                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                    markdown
+                  </span>
                 </div>
 
                 <div className="min-w-0 overflow-hidden">
@@ -412,112 +374,125 @@ export default async function PackagePage({
                   </ReactMarkdown>
                 </div>
               </section>
-            </FadeIn>
+            </div>
           </div>
 
-          <FadeIn className="min-w-0 space-y-4" delay={0.08}>
-            <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-              <SectionTitle title="Weekly downloads" subtitle="Across all versions." />
-              <div className="mt-4 space-y-3">
-                <p className="text-[11px] text-text-muted">
-                  {formatRangeLabel(
-                    packageMeta.downloadRange?.start,
-                    packageMeta.downloadRange?.end,
-                  )}
-                </p>
-                <div className="space-y-3">
-                  <p className="text-[24px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
-                    {typeof packageMeta.weeklyDownloads === "number"
-                      ? packageMeta.weeklyDownloads.toLocaleString("en-US")
-                      : "Unknown"}
-                  </p>
-                  <DownloadSparkline
-                    points={packageMeta.downloadTrend ?? []}
-                    className="h-14 w-full text-brand"
+          <div className="min-w-0">
+            <RailSection
+              title="weekly downloads"
+              id="downloads"
+              subtitle="Across all versions."
+            >
+              <p className="m-0 font-mono text-[11px] text-text-secondary">
+                {formatRangeLabel(
+                  packageMeta.downloadRange?.start,
+                  packageMeta.downloadRange?.end,
+                )}
+              </p>
+              <p className="mt-2 mb-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
+                {typeof packageMeta.weeklyDownloads === "number"
+                  ? packageMeta.weeklyDownloads.toLocaleString("en-US")
+                  : "Unknown"}
+              </p>
+              <DownloadSparkline
+                points={packageMeta.downloadTrend ?? []}
+                className="mt-3 h-14 w-full text-brand"
+              />
+            </RailSection>
+
+            <RailSection
+              title="compatibility"
+              id="compatibility"
+              subtitle="Runtime metadata."
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="inline-flex min-w-0 items-center gap-2 font-mono text-[12px] text-text-secondary">
+                  <Globe
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 text-text-muted"
+                    strokeWidth={1.8}
                   />
-                </div>
-              </div>
-            </aside>
-
-            <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-              <SectionTitle title="Compatibility" subtitle="Runtime metadata." />
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="inline-flex min-w-0 items-center gap-2 text-[13px] leading-[1.5] text-text-muted">
-                  <Globe className="h-4 w-4 shrink-0" strokeWidth={1.8} />
-                  Node.js
+                  node
                 </span>
-                <span className="min-w-0 break-words text-right text-[13px] font-medium text-text-primary">
-                  {latestInfo?.engines?.node || "Not specified"}
+                <span className="min-w-0 break-words text-right font-mono text-[12px] text-text-primary">
+                  {nodeRange || "any"}
                 </span>
               </div>
-            </aside>
+            </RailSection>
 
-            <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-              <SectionTitle title="Versions" subtitle="Recent releases." />
-              <div className="mt-4 space-y-2">
+            <RailSection title="versions" id="versions" subtitle="Recent releases.">
+              <div>
                 {(data.recentVersions ?? []).map((entry) => (
                   <div
                     key={entry.version}
-                    className={`rounded-[var(--radius-md)] border px-3 py-2.5 transition-colors duration-150 ease-out ${
-                      entry.version === latestVersion
-                        ? "border-border-strong bg-[#151515]"
-                        : "border-transparent hover:border-border-subtle hover:bg-[#121212]"
-                    }`}
+                    className="flex items-start justify-between gap-3 border-b border-border-subtle py-2 last:border-b-0"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-text-primary">
-                          {entry.version}
+                    <div className="min-w-0">
+                      <p
+                        className={`truncate font-mono text-[12px] ${
+                          entry.version === latestVersion
+                            ? "text-text-primary"
+                            : "text-text-secondary"
+                        }`}
+                      >
+                        {entry.version}
+                      </p>
+                      {entry.tag ? (
+                        <p className="mt-0.5 mb-0 font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
+                          {entry.tag}
                         </p>
-                        {entry.tag ? (
-                          <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-brand">
-                            {entry.tag}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span className="shrink-0 text-[11px] text-text-muted">
-                        {formatDate(entry.publishedAt)}
-                      </span>
+                      ) : null}
                     </div>
+                    <span className="shrink-0 font-mono text-[10px] text-text-secondary">
+                      {formatDate(entry.publishedAt)}
+                    </span>
                   </div>
                 ))}
               </div>
-            </aside>
+            </RailSection>
 
             {(latestInfo?.keywords ?? data.keywords ?? []).length > 0 ? (
-              <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-                <SectionTitle title="Keywords" subtitle="Tagged topics." />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {(latestInfo?.keywords ?? data.keywords ?? []).slice(0, 12).map((keyword) => (
-                    <span
-                      key={keyword}
-                      className="inline-flex items-center rounded-[var(--radius-md)] border border-border-strong bg-[#151515] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.04em] text-text-secondary"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
+              <RailSection title="keywords" id="keywords" subtitle="Tagged topics.">
+                <div className="flex flex-wrap gap-1.5">
+                  {(latestInfo?.keywords ?? data.keywords ?? [])
+                    .slice(0, 12)
+                    .map((keyword) => (
+                      <span
+                        key={keyword}
+                        className="inline-flex items-center rounded-[var(--radius-xs)] border border-border-strong px-1.5 py-0.5 font-mono text-[10px] text-text-secondary"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
                 </div>
-              </aside>
+              </RailSection>
             ) : null}
 
             {(data.maintainers ?? []).length > 0 ? (
-              <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-                <SectionTitle title="Maintainers" subtitle="Registry package owners." />
-                <div className="mt-4 space-y-3">
+              <RailSection
+                title="maintainers"
+                id="maintainers"
+                subtitle="Registry package owners."
+              >
+                <div className="space-y-3">
                   {(data.maintainers ?? []).slice(0, 6).map((maintainer) => (
                     <div
                       key={`${maintainer.name}-${maintainer.email ?? ""}`}
                       className="flex min-w-0 items-center gap-3"
                     >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-strong bg-[#151515] text-text-primary">
-                        <Users className="h-4 w-4" strokeWidth={1.8} />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-border-strong text-text-secondary">
+                        <Users
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5"
+                          strokeWidth={1.8}
+                        />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-text-primary">
+                        <p className="truncate font-mono text-[12px] text-text-primary">
                           {maintainer.name}
                         </p>
                         {maintainer.email ? (
-                          <p className="truncate text-[11px] text-text-muted">
+                          <p className="truncate text-[11px] text-text-secondary">
                             {maintainer.email}
                           </p>
                         ) : null}
@@ -525,9 +500,9 @@ export default async function PackagePage({
                     </div>
                   ))}
                 </div>
-              </aside>
+              </RailSection>
             ) : null}
-          </FadeIn>
+          </div>
         </main>
       </PageContainer>
     </AppShell>

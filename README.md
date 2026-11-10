@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# npmsearch
 
-## Getting Started
+A fast, minimal browser for the npm registry. Dense package metadata, keyboard-first search, README rendering, and a quiet terminal-inspired interface.
 
-First, run the development server:
+Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, and Upstash Redis.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This repository uses **pnpm only**. Do not commit a second lockfile.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the dev server |
+| `pnpm build` | Production build |
+| `pnpm start` | Serve the production build |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Vitest unit tests |
+| `pnpm test:e2e` | Playwright smoke, responsive and axe tests (run `pnpm exec playwright install chromium` once) |
 
-To learn more about Next.js, take a look at the following resources:
+## Environment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy `.env.example` to `.env` and fill in the values:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `UPSTASH_REDIS_REST_URL` | yes | Shared response cache |
+| `UPSTASH_REDIS_REST_TOKEN` | yes | Shared response cache |
+| `NEXT_PUBLIC_BASE_URL` | no | Fallback origin for local tooling |
+| `GITHUB_TOKEN` | no | Stars/forks/issues on package pages; the rail hides when absent |
 
-## Deploy on Vercel
+Never commit `.env`. Missing `GITHUB_TOKEN` must never fail a build or a page render.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/lib/*` — registry, downloads, GitHub and cache access. Pages call this directly.
+- `app/components/ui.tsx` — shared primitives; `app/components/*` — interactive islands.
+- `app/search/page.tsx` — search route.
+- `app/package/[name]/page.tsx` — package route and README.
+- `app/api/*` — thin HTTP adapters for client-side search.
+- `app/globals.css` — the only source of design tokens.
+
+Server Components are the default. `"use client"` is reserved for interactive leaves.
+
+## Design rules
+
+Hairlines over cards, monospace for identifiers and numbers, one accent color, no shadows or gradients. Every async view has a skeleton with zero layout shift. Layouts are verified at 360px, 768px and 1280px.
+
+## Status
+
+Phase 0 (foundation and design system) is complete: stable 56px shell, hairline primitives, monospace package page, unit/e2e/CI coverage. Phase 1 (registry migration) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

@@ -1,39 +1,114 @@
 import Link from "next/link";
-import { FadeIn } from "./components/motion";
+import { PageContainer } from "./components/ui";
 
-const suggestedPackages = ["react", "next", "typescript", "tailwindcss", "zod"];
+const suggestedPackages = ["react", "next", "typescript", "tailwindcss", "vite", "zod"];
+
+const workflow = [
+  {
+    step: "01",
+    title: "search",
+    body: "Query the registry by name, scope, or keyword. Results stay dense and scannable.",
+  },
+  {
+    step: "02",
+    title: "inspect",
+    body: "Read versions, dependencies, compatibility, install size, and the README in one view.",
+  },
+  {
+    step: "03",
+    title: "install",
+    body: "Copy a command for npm, pnpm, yarn, or bun without leaving the page.",
+  },
+];
 
 export default function HomePage() {
   return (
-    <FadeIn className="w-full" delay={0.04}>
-      <main className="w-full">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-text-secondary">
-            npm registry browser
-          </p>
-          <p className="m-0 max-w-[48ch] text-[16px] leading-[1.6] text-text-secondary">
-            Search the npm ecosystem with a sharper layout, clearer metadata, and
-            package pages built for real work.
-          </p>
-        </div>
+    <PageContainer className="py-10 sm:py-16">
+      <section className="max-w-[760px]">
+        <p className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-text-label">
+          {"// npm registry browser"}
+        </p>
+        <h1 className="mt-4 mb-0 font-mono text-[clamp(32px,6vw,48px)] leading-[1.05] font-semibold tracking-[-0.03em] text-text-primary">
+          search the registry.
+        </h1>
+        <p className="mt-4 mb-0 max-w-[62ch] text-[15px] leading-7 text-text-secondary">
+          A faster, quieter interface for the npm ecosystem. No noise, no marketing
+          pages — just package data, versions, and READMEs.
+        </p>
 
-        {suggestedPackages.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border-subtle pt-4">
-            <span className="text-[13px] leading-[1.5] text-text-muted">Popular</span>
-            {suggestedPackages.map((pkg) => (
-              <Link
-                key={pkg}
-                href={`/package/${pkg}`}
-                className="text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary"
-              >
-                {pkg}
-              </Link>
-            ))}
+        <form
+          action="/search"
+          method="GET"
+          role="search"
+          className="mt-8 flex flex-col gap-2 sm:flex-row"
+        >
+          <label htmlFor="home-search" className="sr-only">
+            Search npm packages
+          </label>
+          <div className="relative min-w-0 flex-1">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-4 flex items-center font-mono text-[14px] text-brand"
+            >
+              $
+            </span>
+            <input
+              id="home-search"
+              type="search"
+              name="q"
+              autoComplete="off"
+              spellCheck={false}
+              enterKeyHint="search"
+              placeholder="react, @scope/package, or a keyword"
+              className="min-h-12 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-3 pr-4 pl-10 text-[15px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand"
+            />
           </div>
-        ) : null}
-      </div>
-      </main>
-    </FadeIn>
+          <button
+            type="submit"
+            className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-sm)] border border-brand bg-brand px-6 font-mono text-[13px] font-medium text-background transition-colors duration-150 ease-out hover:border-brand-hover hover:bg-brand-hover"
+          >
+            search
+          </button>
+        </form>
+      </section>
+
+      <section aria-labelledby="popular-heading" className="mt-12 border-t border-border-subtle pt-5">
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-3">
+          <h2
+            id="popular-heading"
+            className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-text-label"
+          >
+            popular
+          </h2>
+          <ul className="m-0 flex list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
+            {suggestedPackages.map((pkg) => (
+              <li key={pkg}>
+                <Link
+                  href={`/package/${pkg}`}
+                  className="inline-flex min-h-11 items-center font-mono text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand"
+                >
+                  {pkg}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section
+        aria-label="How npmsearch works"
+        className="mt-12 grid gap-px border-y border-border-subtle bg-border-subtle sm:grid-cols-3"
+      >
+        {workflow.map((item) => (
+          <div key={item.step} className="bg-background px-4 py-5 sm:px-5">
+            <span className="font-mono text-[10px] text-text-secondary">{item.step}</span>
+            <h2 className="mt-2 mb-0 font-mono text-[14px] font-medium text-text-primary">
+              {item.title}
+            </h2>
+            <p className="mt-2 mb-0 text-[12px] leading-5 text-text-secondary">{item.body}</p>
+          </div>
+        ))}
+      </section>
+    </PageContainer>
   );
 }
