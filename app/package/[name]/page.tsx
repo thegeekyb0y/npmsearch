@@ -1,25 +1,24 @@
 import {
-  ArrowDownToLine,
-  Boxes,
-  CalendarDays,
+  CircleAlert,
   ExternalLinkIcon,
+  GitFork,
+  Github,
   Globe,
+  House,
   Package2,
-  ShieldCheck,
-  Sparkles,
   Star,
   Users,
-  Workflow,
 } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { CopyInstallButton } from "@/app/components/copy-install-button";
 import { DownloadSparkline } from "@/app/components/download-sparkline";
+import { InstallBlock } from "@/app/components/install-block";
+import { MetaStrip } from "@/app/components/meta-strip";
+import { TabRail } from "@/app/components/tab-rail";
 import {
   AppShell,
-  ExternalLink,
   PageContainer,
   SectionTitle,
   StatusPanel,
@@ -33,6 +32,7 @@ import {
   normalizeRepositoryUrl,
 } from "@/app/lib/format";
 import { getBaseUrl } from "@/app/lib/get-base-url";
+import type { MetaItem, TabItem } from "@/app/lib/types";
 
 type Maintainer = { name: string; email?: string };
 type DownloadPoint = { day?: string; downloads: number };
@@ -72,28 +72,6 @@ interface NpmPackagePageData {
     downloadRange?: { start?: string; end?: string };
     publishedAt?: string;
   };
-}
-
-function MetricTile({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof ShieldCheck;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-3 py-3 transition-colors duration-150 ease-out hover:border-border-strong">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-text-muted" strokeWidth={1.8} />
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-muted">
-          {label}
-        </span>
-      </div>
-      <p className="mt-2 truncate text-[14px] font-medium text-text-primary">{value}</p>
-    </div>
-  );
 }
 
 const markdownComponents: Components = {
@@ -227,17 +205,34 @@ export default async function PackagePage({
   }
 
   const data: NpmPackagePageData = await res.json();
+  const packageName = data.name ?? decodedName;
   const latestVersion = data["dist-tags"]?.latest || "Unknown";
-  const installCommand = `npm i ${data.name}`;
   const repositoryUrl = normalizeRepositoryUrl(data.repository?.url);
+  const repositoryLabel = repositoryUrl
+    ?.replace(/^https?:\/\/[^/]+\//, "")
+    .replace(/\/$/, "");
   const packageMeta = data._meta ?? {};
   const latestInfo = data.latestVersionInfo;
   const depsCount = Object.keys(latestInfo?.dependencies ?? {}).length;
-  const featureBadges = [
-    latestInfo?.engines?.node ? "Node" : null,
-    depsCount ? "Dependencies" : null,
-    repositoryUrl ? "Open Source" : null,
-  ].filter(Boolean) as string[];
+  const nodeRange = latestInfo?.engines?.node;
+  const license = latestInfo?.license ?? data.license ?? "Unknown";
+
+  const metaItems: MetaItem[] = [
+    { label: "license", value: license },
+    { label: "deps", value: String(depsCount) },
+    {
+      label: "size",
+      value: formatBytes(latestInfo?.dist?.unpackedSize),
+      hint: "Unpacked package size. Install size includes dependencies.",
+    },
+    { label: "node", value: nodeRange ?? "any" },
+    { label: "published", value: formatDate(packageMeta.publishedAt) },
+  ];
+
+  const tabs: TabItem[] = [
+    { href: "#overview", label: "overview", active: true },
+    { href: "#readme", label: "readme" },
+  ];
 
   return (
     <AppShell>
@@ -245,140 +240,132 @@ export default async function PackagePage({
         <main className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-4">
             <div className="space-y-4">
-              <section className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4 md:px-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="min-w-0 break-words text-[30px] leading-none font-semibold tracking-[-0.02em] text-text-primary md:text-[34px]">
-                        {data.name}
-                      </h1>
-                      <VersionBadge version={latestVersion} />
-                    </div>
+              <section id="overview" className="min-w-0 border-b border-border-subtle pb-5">
+                <p className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-text-label">
+                  package
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <h1 className="min-w-0 break-words font-mono text-[clamp(30px,5vw,44px)] leading-none font-semibold tracking-[-0.03em] text-text-primary">
+                    {packageName}
+                  </h1>
+                  <VersionBadge version={latestVersion} />
+                </div>
 
-                    <p className="m-0 max-w-[72ch] text-[15px] leading-7 text-text-secondary">
-                      {data.description?.trim() || "No description provided."}
-                    </p>
+                <p className="mt-3 mb-0 max-w-[72ch] text-[14px] leading-7 text-text-secondary">
+                  {data.description?.trim() || "No description provided."}
+                </p>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-text-secondary">
-                      {repositoryUrl ? (
-                        <ExternalLink href={repositoryUrl}>repository</ExternalLink>
-                      ) : null}
-                      {data.homepage ? <ExternalLink href={data.homepage}>homepage</ExternalLink> : null}
-                      <ExternalLink
-                        href={`https://www.npmjs.com/package/${encodeURIComponent(data.name ?? decodedName)}`}
-                      >
-                        npm
-                      </ExternalLink>
-                      {packageMeta.issues ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-text-muted" strokeWidth={1.8} />
-                          {formatCompactNumber(packageMeta.issues)} issues
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {featureBadges.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {featureBadges.map((badge) => (
-                          <span
-                            key={badge}
-                            className="inline-flex min-h-7 items-center rounded-[var(--radius-md)] border border-border-strong bg-[#151515] px-2.5 text-[10px] font-medium uppercase tracking-[0.08em] text-text-secondary"
-                          >
-                            {badge}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {repositoryUrl ? (
-                      <a
-                        href={repositoryUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border border-border-subtle bg-transparent px-3 text-[12px] font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#151515]"
-                      >
-                        repository
-                      </a>
-                    ) : null}
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[12px] text-text-secondary">
+                  {repositoryUrl ? (
                     <a
-                      href={`https://www.npmjs.com/package/${encodeURIComponent(data.name ?? decodedName)}`}
+                      href={repositoryUrl}
                       target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border border-border-subtle bg-transparent px-3 text-[12px] font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#151515]"
+                      rel="noreferrer noopener"
+                      className="inline-flex min-w-0 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
                     >
-                      npm
+                      <Github
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 shrink-0 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      <span className="max-w-[220px] truncate">
+                        {repositoryLabel || "repository"}
+                      </span>
                     </a>
-                  </div>
+                  ) : null}
+                  {typeof packageMeta.stars === "number" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Star
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      {formatCompactNumber(packageMeta.stars)}
+                    </span>
+                  ) : null}
+                  {typeof packageMeta.forks === "number" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <GitFork
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      {formatCompactNumber(packageMeta.forks)}
+                    </span>
+                  ) : null}
+                  {data.homepage ? (
+                    <a
+                      href={data.homepage}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
+                    >
+                      <House
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      homepage
+                    </a>
+                  ) : null}
+                  {typeof packageMeta.issues === "number" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <CircleAlert
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 text-text-muted"
+                        strokeWidth={1.8}
+                      />
+                      {formatCompactNumber(packageMeta.issues)} issues
+                    </span>
+                  ) : null}
+                  <a
+                    href={`https://www.npmjs.com/package/${encodeURIComponent(packageName)}`}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
+                  >
+                    <Package2
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 text-text-muted"
+                      strokeWidth={1.8}
+                    />
+                    npm
+                  </a>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                    {nodeRange ? `node ${nodeRange}` : "node any"}
+                  </span>
+                  <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                    {depsCount} deps
+                  </span>
+                  {repositoryUrl ? (
+                    <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                      open source
+                    </span>
+                  ) : null}
                 </div>
               </section>
 
-              <section className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
-                <MetricTile
-                  icon={ArrowDownToLine}
-                  label="Downloads"
-                  value={formatCompactNumber(packageMeta.weeklyDownloads)}
-                />
-                <MetricTile
-                  icon={Star}
-                  label="Stars"
-                  value={formatCompactNumber(packageMeta.stars)}
-                />
-                <MetricTile
-                  icon={Boxes}
-                  label="Dependents"
-                  value={formatCompactNumber(packageMeta.dependents)}
-                />
-                <MetricTile
-                  icon={Workflow}
-                  label="Deps"
-                  value={String(depsCount)}
-                />
-                <MetricTile
-                  icon={Package2}
-                  label="Size"
-                  value={formatBytes(latestInfo?.dist?.unpackedSize)}
-                />
-                <MetricTile
-                  icon={ShieldCheck}
-                  label="License"
-                  value={latestInfo?.license ?? data.license ?? "Unknown"}
-                />
-                <MetricTile
-                  icon={CalendarDays}
-                  label="Published"
-                  value={formatDate(packageMeta.publishedAt)}
-                />
-              </section>
+              <TabRail items={tabs} />
 
-              <section className="rounded-[var(--radius-md)] border border-[#1a1a1a] bg-surface-code px-4 py-3.5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="m-0 text-[10px] font-medium uppercase tracking-[0.08em] text-text-muted">
-                      Install
-                    </p>
-                    <code className="block min-w-0 overflow-x-auto font-mono text-[14px] text-text-primary">
-                      {installCommand}
-                    </code>
-                  </div>
-                  <CopyInstallButton command={installCommand} />
-                </div>
-              </section>
+              <MetaStrip items={metaItems} />
 
-              <section
-                id="readme"
-                className="min-w-0 rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4 md:px-5"
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+              <div className="py-5">
+                <InstallBlock packageName={packageName} />
+              </div>
+
+
+              <section id="readme" className="min-w-0 pt-2">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-border-subtle pb-3">
                   <SectionTitle
                     title="README"
                     subtitle="GitHub-flavored package documentation."
                   />
-                  <div className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-border-subtle px-3 py-2 text-[11px] text-text-secondary">
-                    <Package2 className="h-4 w-4 text-text-muted" strokeWidth={1.8} />
-                    <span>formatted markdown</span>
-                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                    markdown
+                  </span>
                 </div>
 
                 <div className="min-w-0 overflow-hidden">
