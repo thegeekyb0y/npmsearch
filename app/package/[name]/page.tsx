@@ -26,6 +26,13 @@ import {
   StatusPanel,
   VersionBadge,
 } from "@/app/components/ui";
+import {
+  formatBytes,
+  formatCompactNumber,
+  formatDate,
+  formatRangeLabel,
+  normalizeRepositoryUrl,
+} from "@/app/lib/format";
 import { getBaseUrl } from "@/app/lib/get-base-url";
 
 type Maintainer = { name: string; email?: string };
@@ -66,37 +73,6 @@ interface NpmPackagePageData {
     downloadRange?: { start?: string; end?: string };
     publishedAt?: string;
   };
-}
-
-function normalizeRepositoryUrl(url?: string) {
-  if (!url) return undefined;
-  return url.replace(/^git\+/, "").replace(/\.git$/, "");
-}
-
-function formatDate(value?: string) {
-  if (!value) return "Unknown";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatRangeLabel(start?: string, end?: string) {
-  if (!start || !end) return "Last 7 days";
-  return `${formatDate(start)} to ${formatDate(end)}`;
-}
-
-function formatBytes(value?: number) {
-  if (!value) return "Unknown";
-  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-  if (value >= 1024) return `${(value / 1024).toFixed(1)} kB`;
-  return `${value} B`;
-}
-
-function formatCompactNumber(value?: number) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "Unknown";
-  return new Intl.NumberFormat("en-US", { notation: "compact" }).format(value);
 }
 
 function MetricTile({

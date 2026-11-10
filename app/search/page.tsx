@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDownloads } from "../lib/format";
 import { getBaseUrl } from "../lib/get-base-url";
 import {
   AppShell,
@@ -30,13 +31,6 @@ interface SearchResult {
 interface SearchResponse {
   total?: number;
   results: SearchResult[];
-}
-
-function formatDownloads(num?: number) {
-  if (typeof num !== "number" || Number.isNaN(num)) return "Downloads unavailable";
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M / wk`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K / wk`;
-  return `${num} / wk`;
 }
 
 export default async function SearchPage({

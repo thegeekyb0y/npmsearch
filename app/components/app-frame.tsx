@@ -5,8 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   startTransition,
-  useDeferredValue,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -31,12 +29,13 @@ export function AppFrame({ children }: { children: ReactNode }) {
     () => getRouteQuery(pathname, searchParams),
     [pathname, searchParams],
   );
-  const deferredRouteQuery = useDeferredValue(routeQuery);
   const [query, setQuery] = useState(routeQuery);
+  const [previousRouteQuery, setPreviousRouteQuery] = useState(routeQuery);
 
-  useEffect(() => {
-    setQuery(deferredRouteQuery);
-  }, [deferredRouteQuery]);
+  if (routeQuery !== previousRouteQuery) {
+    setPreviousRouteQuery(routeQuery);
+    setQuery(routeQuery);
+  }
 
   const shellTransition: Transition = prefersReducedMotion
     ? { duration: 0 }
