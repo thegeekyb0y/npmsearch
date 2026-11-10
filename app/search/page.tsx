@@ -9,7 +9,7 @@ import {
   StatusPanel,
   VersionBadge,
 } from "../components/ui";
-import { FadeIn, StaggerItem, StaggerList } from "../components/motion";
+
 
 interface Package {
   name: string;
@@ -103,7 +103,7 @@ export default async function SearchPage({
     <AppShell>
       <PageContainer className="py-6">
         <main className="flex flex-col gap-6">
-          <FadeIn className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-text-secondary">
               Search results
             </p>
@@ -114,7 +114,7 @@ export default async function SearchPage({
             <p className="m-0 text-[13px] leading-[1.5] text-text-muted">
               Ranked from the npm ecosystem with version and weekly download context.
             </p>
-          </FadeIn>
+          </div>
 
           {results.length === 0 ? (
             <StatusPanel
@@ -122,13 +122,13 @@ export default async function SearchPage({
               message={`No results matched "${query}". Try a broader term or a different package name.`}
             />
           ) : (
-            <StaggerList className="grid gap-4 md:gap-5">
+            <div className="grid gap-4 md:gap-5">
               {results.map((item) => {
                 const isExactMatch =
                   item.package.name.toLowerCase() === query.toLowerCase();
 
                 return (
-                  <StaggerItem key={item.package.name}>
+                  <div key={item.package.name}>
                     <article className="group relative flex flex-col gap-4 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface p-5 transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#141414]">
                       <span className="absolute inset-y-0 left-0 w-[2px] bg-brand opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100" />
                       <div className="flex items-start justify-between gap-3">
@@ -172,10 +172,10 @@ export default async function SearchPage({
                         </div>
                       </div>
                     </article>
-                  </StaggerItem>
+                  </div>
                 );
               })}
-            </StaggerList>
+            </div>
           )}
         </main>
       </PageContainer>

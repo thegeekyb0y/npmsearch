@@ -17,7 +17,6 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { CopyInstallButton } from "@/app/components/copy-install-button";
 import { DownloadSparkline } from "@/app/components/download-sparkline";
-import { FadeIn } from "@/app/components/motion";
 import {
   AppShell,
   ExternalLink,
@@ -245,7 +244,7 @@ export default async function PackagePage({
       <PageContainer className="py-4">
         <main className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-4">
-            <FadeIn className="space-y-4">
+            <div className="space-y-4">
               <section className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4 md:px-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 space-y-3">
@@ -388,10 +387,10 @@ export default async function PackagePage({
                   </ReactMarkdown>
                 </div>
               </section>
-            </FadeIn>
+            </div>
           </div>
 
-          <FadeIn className="min-w-0 space-y-4" delay={0.08}>
+          <div className="min-w-0 space-y-4">
             <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
               <SectionTitle title="Weekly downloads" subtitle="Across all versions." />
               <div className="mt-4 space-y-3">
@@ -503,7 +502,7 @@ export default async function PackagePage({
                 </div>
               </aside>
             ) : null}
-          </FadeIn>
+          </div>
         </main>
       </PageContainer>
     </AppShell>

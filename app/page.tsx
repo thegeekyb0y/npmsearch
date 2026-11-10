@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { FadeIn } from "./components/motion";
 
 const suggestedPackages = ["react", "next", "typescript", "tailwindcss", "zod"];
 
 export default function HomePage() {
   return (
-    <FadeIn className="w-full" delay={0.04}>
+    <div className="w-full">
       <main className="w-full">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
@@ -34,6 +33,6 @@ export default function HomePage() {
         ) : null}
       </div>
       </main>
-    </FadeIn>
+    </div>
   );
 }
