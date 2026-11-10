@@ -16,6 +16,7 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { DownloadSparkline } from "@/app/components/download-sparkline";
 import { InstallBlock } from "@/app/components/install-block";
 import { MetaStrip } from "@/app/components/meta-strip";
+import { RailSection } from "@/app/components/rail-section";
 import { TabRail } from "@/app/components/tab-rail";
 import {
   AppShell,
@@ -236,8 +237,8 @@ export default async function PackagePage({
 
   return (
     <AppShell>
-      <PageContainer className="py-4">
-        <main className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
+      <PageContainer className="py-6">
+        <main className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
           <div className="min-w-0 space-y-4">
             <div className="space-y-4">
               <section id="overview" className="min-w-0 border-b border-border-subtle pb-5">
@@ -356,7 +357,6 @@ export default async function PackagePage({
                 <InstallBlock packageName={packageName} />
               </div>
 
-
               <section id="readme" className="min-w-0 pt-2">
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-border-subtle pb-3">
                   <SectionTitle
@@ -377,109 +377,122 @@ export default async function PackagePage({
             </div>
           </div>
 
-          <div className="min-w-0 space-y-4">
-            <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-              <SectionTitle title="Weekly downloads" subtitle="Across all versions." />
-              <div className="mt-4 space-y-3">
-                <p className="text-[11px] text-text-muted">
-                  {formatRangeLabel(
-                    packageMeta.downloadRange?.start,
-                    packageMeta.downloadRange?.end,
-                  )}
-                </p>
-                <div className="space-y-3">
-                  <p className="text-[24px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
-                    {typeof packageMeta.weeklyDownloads === "number"
-                      ? packageMeta.weeklyDownloads.toLocaleString("en-US")
-                      : "Unknown"}
-                  </p>
-                  <DownloadSparkline
-                    points={packageMeta.downloadTrend ?? []}
-                    className="h-14 w-full text-brand"
+          <div className="min-w-0">
+            <RailSection
+              title="weekly downloads"
+              id="downloads"
+              subtitle="Across all versions."
+            >
+              <p className="m-0 font-mono text-[11px] text-text-muted">
+                {formatRangeLabel(
+                  packageMeta.downloadRange?.start,
+                  packageMeta.downloadRange?.end,
+                )}
+              </p>
+              <p className="mt-2 mb-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
+                {typeof packageMeta.weeklyDownloads === "number"
+                  ? packageMeta.weeklyDownloads.toLocaleString("en-US")
+                  : "Unknown"}
+              </p>
+              <DownloadSparkline
+                points={packageMeta.downloadTrend ?? []}
+                className="mt-3 h-14 w-full text-brand"
+              />
+            </RailSection>
+
+            <RailSection
+              title="compatibility"
+              id="compatibility"
+              subtitle="Runtime metadata."
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="inline-flex min-w-0 items-center gap-2 font-mono text-[12px] text-text-secondary">
+                  <Globe
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 text-text-muted"
+                    strokeWidth={1.8}
                   />
-                </div>
-              </div>
-            </aside>
-
-            <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-              <SectionTitle title="Compatibility" subtitle="Runtime metadata." />
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="inline-flex min-w-0 items-center gap-2 text-[13px] leading-[1.5] text-text-muted">
-                  <Globe className="h-4 w-4 shrink-0" strokeWidth={1.8} />
-                  Node.js
+                  node
                 </span>
-                <span className="min-w-0 break-words text-right text-[13px] font-medium text-text-primary">
-                  {latestInfo?.engines?.node || "Not specified"}
+                <span className="min-w-0 break-words text-right font-mono text-[12px] text-text-primary">
+                  {nodeRange || "any"}
                 </span>
               </div>
-            </aside>
+            </RailSection>
 
-            <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-              <SectionTitle title="Versions" subtitle="Recent releases." />
-              <div className="mt-4 space-y-2">
+            <RailSection title="versions" id="versions" subtitle="Recent releases.">
+              <div>
                 {(data.recentVersions ?? []).map((entry) => (
                   <div
                     key={entry.version}
-                    className={`rounded-[var(--radius-md)] border px-3 py-2.5 transition-colors duration-150 ease-out ${
-                      entry.version === latestVersion
-                        ? "border-border-strong bg-[#151515]"
-                        : "border-transparent hover:border-border-subtle hover:bg-[#121212]"
-                    }`}
+                    className="flex items-start justify-between gap-3 border-b border-border-subtle py-2 last:border-b-0"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-text-primary">
-                          {entry.version}
+                    <div className="min-w-0">
+                      <p
+                        className={`truncate font-mono text-[12px] ${
+                          entry.version === latestVersion
+                            ? "text-text-primary"
+                            : "text-text-secondary"
+                        }`}
+                      >
+                        {entry.version}
+                      </p>
+                      {entry.tag ? (
+                        <p className="mt-0.5 mb-0 font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
+                          {entry.tag}
                         </p>
-                        {entry.tag ? (
-                          <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-brand">
-                            {entry.tag}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span className="shrink-0 text-[11px] text-text-muted">
-                        {formatDate(entry.publishedAt)}
-                      </span>
+                      ) : null}
                     </div>
+                    <span className="shrink-0 font-mono text-[10px] text-text-muted">
+                      {formatDate(entry.publishedAt)}
+                    </span>
                   </div>
                 ))}
               </div>
-            </aside>
+            </RailSection>
 
             {(latestInfo?.keywords ?? data.keywords ?? []).length > 0 ? (
-              <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-                <SectionTitle title="Keywords" subtitle="Tagged topics." />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {(latestInfo?.keywords ?? data.keywords ?? []).slice(0, 12).map((keyword) => (
-                    <span
-                      key={keyword}
-                      className="inline-flex items-center rounded-[var(--radius-md)] border border-border-strong bg-[#151515] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.04em] text-text-secondary"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
+              <RailSection title="keywords" id="keywords" subtitle="Tagged topics.">
+                <div className="flex flex-wrap gap-1.5">
+                  {(latestInfo?.keywords ?? data.keywords ?? [])
+                    .slice(0, 12)
+                    .map((keyword) => (
+                      <span
+                        key={keyword}
+                        className="inline-flex items-center rounded-[var(--radius-xs)] border border-border-strong px-1.5 py-0.5 font-mono text-[10px] text-text-secondary"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
                 </div>
-              </aside>
+              </RailSection>
             ) : null}
 
             {(data.maintainers ?? []).length > 0 ? (
-              <aside className="rounded-[var(--radius-md)] border border-border-subtle bg-surface px-4 py-4">
-                <SectionTitle title="Maintainers" subtitle="Registry package owners." />
-                <div className="mt-4 space-y-3">
+              <RailSection
+                title="maintainers"
+                id="maintainers"
+                subtitle="Registry package owners."
+              >
+                <div className="space-y-3">
                   {(data.maintainers ?? []).slice(0, 6).map((maintainer) => (
                     <div
                       key={`${maintainer.name}-${maintainer.email ?? ""}`}
                       className="flex min-w-0 items-center gap-3"
                     >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-strong bg-[#151515] text-text-primary">
-                        <Users className="h-4 w-4" strokeWidth={1.8} />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-border-strong text-text-secondary">
+                        <Users
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5"
+                          strokeWidth={1.8}
+                        />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-text-primary">
+                        <p className="truncate font-mono text-[12px] text-text-primary">
                           {maintainer.name}
                         </p>
                         {maintainer.email ? (
-                          <p className="truncate text-[11px] text-text-muted">
+                          <p className="truncate text-[11px] text-text-secondary">
                             {maintainer.email}
                           </p>
                         ) : null}
@@ -487,7 +500,7 @@ export default async function PackagePage({
                     </div>
                   ))}
                 </div>
-              </aside>
+              </RailSection>
             ) : null}
           </div>
         </main>
