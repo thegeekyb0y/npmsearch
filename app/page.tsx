@@ -60,7 +60,7 @@ export default function HomePage() {
               spellCheck={false}
               enterKeyHint="search"
               placeholder="react, @scope/package, or a keyword"
-              className="min-h-12 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-3 pr-4 pl-10 text-[15px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-muted hover:border-border-strong focus:border-brand focus:outline-none"
+              className="min-h-12 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-3 pr-4 pl-10 text-[15px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand"
             />
           </div>
           <button
@@ -85,7 +85,7 @@ export default function HomePage() {
               <li key={pkg}>
                 <Link
                   href={`/package/${pkg}`}
-                  className="font-mono text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand"
+                  className="inline-flex min-h-11 items-center font-mono text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand"
                 >
                   {pkg}
                 </Link>
@@ -101,7 +101,7 @@ export default function HomePage() {
       >
         {workflow.map((item) => (
           <div key={item.step} className="bg-background px-4 py-5 sm:px-5">
-            <span className="font-mono text-[10px] text-text-muted">{item.step}</span>
+            <span className="font-mono text-[10px] text-text-secondary">{item.step}</span>
             <h2 className="mt-2 mb-0 font-mono text-[14px] font-medium text-text-primary">
               {item.title}
             </h2>

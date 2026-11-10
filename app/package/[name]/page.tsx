@@ -126,7 +126,7 @@ const markdownComponents: Components = {
       <table className="min-w-full border-collapse text-left text-[13px]">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="bg-[#131313] text-text-primary">{children}</thead>,
+  thead: ({ children }) => <thead className="bg-surface-raised text-text-primary">{children}</thead>,
   th: ({ children }) => (
     <th className="border-b border-border-subtle px-3 py-2.5 font-medium">{children}</th>
   ),
@@ -142,8 +142,8 @@ const markdownComponents: Components = {
 
     if (match) {
       return (
-        <div className="my-6 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-[#101010]">
-          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2 text-[11px] uppercase tracking-[0.08em] text-text-muted">
+        <div className="my-6 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface-code">
+          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2 text-[11px] uppercase tracking-[0.08em] text-text-secondary">
             <span>{match[1]}</span>
             <span>code</span>
           </div>
@@ -154,7 +154,7 @@ const markdownComponents: Components = {
             customStyle={{
               margin: 0,
               padding: "14px",
-              background: "#101010",
+              background: "#0d0d0d",
               fontSize: "13px",
               lineHeight: 1.65,
             }}
@@ -171,7 +171,7 @@ const markdownComponents: Components = {
     }
 
     return (
-      <code className="rounded-[var(--radius-sm)] border border-border-subtle bg-[#151515] px-[5px] py-px font-mono text-[13px] text-text-primary">
+      <code className="rounded-[var(--radius-sm)] border border-border-subtle bg-surface-raised px-[5px] py-px font-mono text-[13px] text-text-primary">
         {children}
       </code>
     );
@@ -262,7 +262,7 @@ export default async function PackagePage({
                       href={repositoryUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex min-w-0 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
+                      className="inline-flex min-h-11 min-w-0 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
                     >
                       <Github
                         aria-hidden="true"
@@ -299,7 +299,7 @@ export default async function PackagePage({
                       href={data.homepage}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
+                      className="inline-flex min-h-11 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
                     >
                       <House
                         aria-hidden="true"
@@ -363,7 +363,7 @@ export default async function PackagePage({
                     title="README"
                     subtitle="GitHub-flavored package documentation."
                   />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-muted">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
                     markdown
                   </span>
                 </div>
@@ -383,7 +383,7 @@ export default async function PackagePage({
               id="downloads"
               subtitle="Across all versions."
             >
-              <p className="m-0 font-mono text-[11px] text-text-muted">
+              <p className="m-0 font-mono text-[11px] text-text-secondary">
                 {formatRangeLabel(
                   packageMeta.downloadRange?.start,
                   packageMeta.downloadRange?.end,
@@ -443,7 +443,7 @@ export default async function PackagePage({
                         </p>
                       ) : null}
                     </div>
-                    <span className="shrink-0 font-mono text-[10px] text-text-muted">
+                    <span className="shrink-0 font-mono text-[10px] text-text-secondary">
                       {formatDate(entry.publishedAt)}
                     </span>
                   </div>

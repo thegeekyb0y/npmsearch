@@ -59,12 +59,12 @@ export function SearchBox() {
           enterKeyHint="search"
           aria-label="Search npm packages"
           placeholder="search packages…"
-          className="min-h-9 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-muted hover:border-border-strong focus:border-brand focus:outline-none"
+          className="min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand"
         />
       </div>
       <button
         type="submit"
-        className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary sm:px-3"
+        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary sm:px-3"
       >
         <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
         <span className="hidden sm:inline">search</span>
@@ -93,12 +93,12 @@ export function SearchBoxFallback() {
           name="q"
           aria-label="Search npm packages"
           placeholder="search packages…"
-          className="min-h-9 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary placeholder:text-text-muted focus:border-brand focus:outline-none"
+          className="min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary placeholder:text-text-secondary focus:border-brand"
         />
       </div>
       <button
         type="submit"
-        className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary sm:px-3"
+        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary sm:px-3"
       >
         <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
         <span className="hidden sm:inline">search</span>

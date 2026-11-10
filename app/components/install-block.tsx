@@ -58,7 +58,7 @@ export function InstallBlock({ packageName }: { packageName: string }) {
           aria-label="Package manager"
           value={manager}
           onChange={(event) => setManager(event.target.value as ManagerId)}
-          className="min-h-11 appearance-none rounded-[var(--radius-sm)] border border-border-subtle bg-transparent py-1 pr-7 pl-2 font-mono text-[12px] text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:text-text-primary focus:border-brand focus:outline-none"
+          className="min-h-11 appearance-none rounded-[var(--radius-sm)] border border-border-subtle bg-transparent py-1 pr-7 pl-2 font-mono text-[12px] text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:text-text-primary focus:border-brand"
         >
           {MANAGERS.map((entry) => (
             <option key={entry.id} value={entry.id} className="bg-surface text-text-primary">

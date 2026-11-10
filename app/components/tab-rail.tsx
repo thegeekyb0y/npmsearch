@@ -19,7 +19,7 @@ export function TabRail({
           key={item.href}
           href={item.href}
           aria-current={item.active ? "page" : undefined}
-          className={`-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 font-mono text-[12px] transition-colors duration-150 ease-out ${
+          className={`-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-[12px] transition-colors duration-150 ease-out ${
             item.active
               ? "border-brand text-text-primary"
               : "border-transparent text-text-secondary hover:text-text-primary"

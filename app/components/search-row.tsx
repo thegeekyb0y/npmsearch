@@ -30,13 +30,13 @@ export function SearchRow({ item }: { item: PackageSummary }) {
               {item.name}
             </h2>
             {item.exact ? <ExactBadge /> : null}
-            <span className="font-mono text-[11px] text-text-muted">v{item.version}</span>
+            <span className="font-mono text-[11px] text-text-secondary">v{item.version}</span>
           </div>
           <p className="mt-1 line-clamp-2 max-w-[74ch] text-[13px] leading-6 text-text-secondary">
             {item.description?.trim() || "No description provided."}
           </p>
         </div>
-        <div className="shrink-0 text-right font-mono text-[11px] leading-5 text-text-muted">
+        <div className="shrink-0 text-right font-mono text-[11px] leading-5 text-text-secondary">
           {publishedAt ? <div className="hidden sm:block">{publishedAt}</div> : null}
           <div className="text-text-secondary">
             {typeof item.weeklyDownloads === "number"

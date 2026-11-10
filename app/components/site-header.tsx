@@ -8,7 +8,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-[var(--header-height)] w-full max-w-[var(--container-max)] items-center gap-3 px-4 sm:gap-4 sm:px-6">
         <Link
           href="/"
-          className="group flex shrink-0 items-baseline gap-1 font-mono text-[13px] leading-none tracking-[-0.01em]"
+          className="group flex min-h-11 shrink-0 items-center gap-1 font-mono text-[13px] leading-none tracking-[-0.01em]"
         >
           <span aria-hidden="true" className="text-brand">
             /
@@ -25,7 +25,7 @@ export function SiteHeader() {
 
         <nav
           aria-label="Primary"
-          className="hidden shrink-0 items-center gap-4 font-mono text-[11px] text-text-muted md:flex"
+          className="hidden shrink-0 items-center gap-4 font-mono text-[11px] text-text-secondary md:flex"
         >
           <Link
             href="/search?q=react"
