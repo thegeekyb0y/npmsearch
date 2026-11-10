@@ -1,15 +1,7 @@
-import Link from "next/link";
-import { formatDownloads } from "../lib/format";
 import { getBaseUrl } from "../lib/get-base-url";
-import {
-  AppShell,
-  ExactBadge,
-  ExternalLink,
-  PageContainer,
-  StatusPanel,
-  VersionBadge,
-} from "../components/ui";
-
+import type { PackageSummary } from "../lib/types";
+import { SearchRow } from "../components/search-row";
+import { AppShell, PageContainer, StatusPanel } from "../components/ui";
 
 interface Package {
   name: string;
@@ -44,7 +36,7 @@ export default async function SearchPage({
   if (!query) {
     return (
       <AppShell>
-        <PageContainer className="py-6">
+        <PageContainer className="py-8">
           <StatusPanel
             title="Search the npm registry"
             message="Enter a package name, scope, or keyword to explore results."
@@ -84,7 +76,7 @@ export default async function SearchPage({
   } catch {
     return (
       <AppShell>
-        <PageContainer className="py-6">
+        <PageContainer className="py-8">
           <StatusPanel
             error
             title="Search is unavailable"
@@ -98,83 +90,44 @@ export default async function SearchPage({
   const results = data.results ?? [];
   const summaryCount =
     typeof data.total === "number" ? data.total : results.length;
+  const normalizedQuery = query.toLowerCase();
+
+  const rows: PackageSummary[] = results.map((item) => ({
+    name: item.package.name,
+    version: item.package.version,
+    description: item.package.description,
+    links: item.package.links,
+    weeklyDownloads: item.weeklyDownloads,
+    exact: item.package.name.toLowerCase() === normalizedQuery,
+  }));
 
   return (
     <AppShell>
-      <PageContainer className="py-6">
-        <main className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-text-secondary">
-              Search results
+      <PageContainer className="py-8">
+        <main>
+          <header className="flex flex-col gap-2 pb-5">
+            <p className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-text-label">
+              search
             </p>
-            <h1 className="m-0 text-[18px] leading-[1.2] font-semibold tracking-[-0.01em] text-text-primary">
-              {summaryCount.toLocaleString("en-US")} packages for &quot;{query}
-              &quot;
+            <h1 className="m-0 font-mono text-[clamp(20px,4vw,28px)] leading-[1.2] font-semibold tracking-[-0.02em] text-text-primary">
+              <span className="text-brand">{summaryCount.toLocaleString("en-US")}</span>{" "}
+              packages for &quot;{query}&quot;
             </h1>
-            <p className="m-0 text-[13px] leading-[1.5] text-text-muted">
-              Ranked from the npm ecosystem with version and weekly download context.
+            <p className="m-0 text-[12px] leading-5 text-text-secondary">
+              Ranked by registry relevance · weekly downloads from npm
             </p>
-          </div>
+          </header>
 
-          {results.length === 0 ? (
+          {rows.length === 0 ? (
             <StatusPanel
               title="No packages found"
               message={`No results matched "${query}". Try a broader term or a different package name.`}
             />
           ) : (
-            <div className="grid gap-4 md:gap-5">
-              {results.map((item) => {
-                const isExactMatch =
-                  item.package.name.toLowerCase() === query.toLowerCase();
-
-                return (
-                  <div key={item.package.name}>
-                    <article className="group relative flex flex-col gap-4 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface p-5 transition-colors duration-150 ease-out hover:border-border-strong hover:bg-[#141414]">
-                      <span className="absolute inset-y-0 left-0 w-[2px] bg-brand opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100" />
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 space-y-3">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <Link
-                              href={`/package/${item.package.name}`}
-                              className="min-w-0 break-words text-[22px] leading-none font-semibold tracking-[-0.01em] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
-                            >
-                              {item.package.name}
-                            </Link>
-                            {isExactMatch ? <ExactBadge /> : null}
-                          </div>
-                          <p className="m-0 text-[14px] leading-[1.6] text-text-secondary">
-                            {item.package.description?.trim() ||
-                              "No description provided."}
-                          </p>
-                        </div>
-                        <VersionBadge version={item.package.version} />
-                      </div>
-
-                      <hr className="m-0 border-0 border-t border-[#1a1a1a]" />
-
-                      <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
-                        <div className="flex flex-wrap items-center gap-4">
-                          <ExternalLink href={item.package.links.npm}>npm</ExternalLink>
-                          {item.package.links.homepage ? (
-                            <ExternalLink href={item.package.links.homepage}>
-                              homepage
-                            </ExternalLink>
-                          ) : null}
-                          {item.package.links.repository ? (
-                            <ExternalLink href={item.package.links.repository}>
-                              repository
-                            </ExternalLink>
-                          ) : null}
-                        </div>
-                        <div className="inline-flex items-center gap-2 font-mono text-[13px] text-text-secondary">
-                          <span className="text-brand">&#8595;</span>
-                          <span>{formatDownloads(item.weeklyDownloads)}</span>
-                        </div>
-                      </div>
-                    </article>
-                  </div>
-                );
-              })}
+            <div className="border-t border-border-subtle">
+              {rows.map((item) => (
+                <SearchRow key={item.name} item={item} />
+              ))}
             </div>
           )}
         </main>
