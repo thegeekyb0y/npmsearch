@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import { Suspense } from "react";
-import { AppFrame } from "./components/app-frame";
+import { SiteFooter } from "./components/site-footer";
+import { SiteHeader } from "./components/site-header";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     default: "npmSearch",
     template: "%s | npmSearch",
   },
-  description: "A polished browser for the npm registry.",
+  description: "A fast, minimal browser for the npm registry.",
 };
 
 export default function RootLayout({
@@ -33,15 +33,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Suspense
-          fallback={
-            <div className="min-h-screen bg-background text-text-primary">
-              {children}
-            </div>
-          }
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-50 focus:rounded-[var(--radius-sm)] focus:border focus:border-brand focus:bg-surface focus:px-3 focus:py-2 focus:text-[13px] focus:text-text-primary"
         >
-          <AppFrame>{children}</AppFrame>
-        </Suspense>
+          Skip to content
+        </a>
+        <SiteHeader />
+        <main id="main-content" tabIndex={-1}>
+          {children}
+        </main>
+        <SiteFooter />
         <Analytics />
       </body>
     </html>
