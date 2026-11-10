@@ -45,7 +45,7 @@ export function SearchBox() {
       <div className="relative min-w-0 flex-1">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-text-muted"
+          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-text-secondary"
         >
           /
         </span>
@@ -64,6 +64,7 @@ export function SearchBox() {
       </div>
       <button
         type="submit"
+        aria-label="Search packages"
         className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary sm:px-3"
       >
         <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
@@ -84,7 +85,7 @@ export function SearchBoxFallback() {
       <div className="relative min-w-0 flex-1">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-text-muted"
+          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-text-secondary"
         >
           /
         </span>
@@ -98,6 +99,7 @@ export function SearchBoxFallback() {
       </div>
       <button
         type="submit"
+        aria-label="Search packages"
         className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary sm:px-3"
       >
         <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />

@@ -65,7 +65,7 @@ export default function HomePage() {
           </div>
           <button
             type="submit"
-            className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-sm)] border border-brand bg-brand px-6 font-mono text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:border-brand-hover hover:bg-brand-hover"
+            className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-sm)] border border-brand bg-brand px-6 font-mono text-[13px] font-medium text-background transition-colors duration-150 ease-out hover:border-brand-hover hover:bg-brand-hover"
           >
             search
           </button>

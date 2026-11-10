@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("smoke", () => {
   test("home renders the search entry point", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("textbox").first()).toBeVisible();
+    await expect(page.getByRole("searchbox").first()).toBeVisible();
     await expect(page.getByRole("link", { name: /npm/i }).first()).toBeVisible();
   });
 

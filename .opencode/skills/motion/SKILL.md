@@ -5,7 +5,7 @@ description: Animation rules for npmsearch using motion/react — durations, eas
 
 # Motion
 
-One library: `motion` (`motion/react`). `framer-motion` is currently imported in `app/components/motion.tsx` and `app/components/app-frame.tsx`; that is a duplicate. Migrate those imports to `motion/react` and remove `framer-motion` from `package.json`. Add no other animation library.
+One library: `motion` (`motion/react`). `framer-motion` has been removed; never import it. Add no other animation library.
 
 ## Timing
 - Micro-interactions (hover, press, color): **100–200ms**.
@@ -22,7 +22,7 @@ className="transition-colors duration-150 ease-out hover:border-border-strong"
 ```
 
 ## Reduced motion
-Wrap the app once with `MotionConfig reducedMotion="user"` (in `app/components/app-frame.tsx`, already a client component). Keep the local `useReducedMotion()` guards in `FadeIn`/`StaggerList`/`StaggerItem` and in `app-frame.tsx` as a second line of defense; new components may rely on the config alone. With reduced motion, render the final state immediately — never a shorter animation.
+The app is wrapped once with `MotionConfig reducedMotion="user"` in `app/components/motion-provider.tsx` (rendered from `app/layout.tsx`). Use local `useReducedMotion()` only when a component needs a different static state. With reduced motion, render the final state immediately — never a shorter animation.
 
 ## Animate only transform and opacity
 Allowed: `opacity`, `transform` (`x`, `y`, `scale`, `rotate`), and `layout`.

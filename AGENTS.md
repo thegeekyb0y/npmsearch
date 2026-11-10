@@ -20,8 +20,9 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 ## Code map
 - `app/globals.css` — tokens. Utilities: `bg-background|surface|surface-code`, `border-border-subtle|strong`, `text-text-primary|secondary|muted`, `text-brand|bg-brand`, `font-mono`. Radii: `rounded-[var(--radius-sm)]` or `rounded-[var(--radius-md)]`.
 - `app/components/ui.tsx` — `AppShell`, `PageContainer`, `SectionTitle`, `VersionBadge`, `ExactBadge`, `ExternalLink`, `StatusPanel`, `CopyButton`. Reuse before inventing.
-- `app/components/motion.tsx` — `FadeIn`, `StaggerList`, `StaggerItem`.
-- `app/components/app-frame.tsx` — global client shell and search bar.
+- `app/components/motion-provider.tsx` — `MotionConfig reducedMotion="user"`.
+- `app/components/site-header.tsx` + `search-box.tsx` — server shell and client search island.
+- Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts`, `app/api/package/[name]/route.ts`. Lib: `app/lib/get-base-url.ts`.
 

@@ -16,7 +16,7 @@ export function SiteHeader() {
           <span className="text-text-primary transition-colors duration-150 ease-out group-hover:text-brand">
             npmsearch
           </span>
-          <span className="hidden text-[10px] text-text-muted lg:inline">v0.1</span>
+          <span className="hidden text-[10px] text-text-secondary lg:inline">v0.1</span>
         </Link>
 
         <Suspense fallback={<SearchBoxFallback />}>
