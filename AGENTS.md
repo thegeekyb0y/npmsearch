@@ -18,7 +18,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - Secrets via env only; keep `.env.example` in sync. No new dependencies without asking.
 
 ## Code map
-- `app/globals.css` — tokens. Utilities: `bg-background|surface|surface-code`, `border-border-subtle|strong`, `text-text-primary|secondary|muted`, `text-brand|bg-brand`, `font-mono`, `rounded-[var(--radius-sm|md)]`.
+- `app/globals.css` — tokens. Utilities: `bg-background|surface|surface-code`, `border-border-subtle|strong`, `text-text-primary|secondary|muted`, `text-brand|bg-brand`, `font-mono`. Radii: `rounded-[var(--radius-sm)]` or `rounded-[var(--radius-md)]`.
 - `app/components/ui.tsx` — `AppShell`, `PageContainer`, `SectionTitle`, `VersionBadge`, `ExactBadge`, `ExternalLink`, `StatusPanel`, `CopyButton`. Reuse before inventing.
 - `app/components/motion.tsx` — `FadeIn`, `StaggerList`, `StaggerItem`.
 - `app/components/app-frame.tsx` — global client shell and search bar.
@@ -26,7 +26,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - APIs: `app/api/search/route.ts`, `app/api/package/[name]/route.ts`. Lib: `app/lib/get-base-url.ts`.
 
 ## Definition of done
-- `pnpm lint && pnpm build` pass (add `pnpm typecheck` once the script exists).
+- `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass.
 - No new `any`, no `@ts-ignore`, no unused code.
 - Every async UI has a skeleton with zero layout shift; `app/package/[name]/loading.tsx` is the reference.
 - Works at 360px, 768px and 1280px with no horizontal page scroll.
@@ -40,6 +40,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `data-layer` — registry/downloads fetching, Upstash keys/TTLs, `app/lib/*`.
 
 ## Roadmap — one PR-sized commit per phase
+0. **Foundation.** Hairline tokens and primitives, stable 56px command bar, server shell with a client search island, `motion/react` only, baseline unit/e2e/CI, README and `.env.example`. *(in progress)*
 1. **Registry migration.** Replace `api.npms.io` with `registry.npmjs.org/-/v1/search`, use `downloads.weekly` from each result, delete per-result download fetches. Move logic to `app/lib/registry.ts`. Fixes: unencoded `q` in `app/api/search/route.ts`; N+1 downloads in `app/search/page.tsx`; remove `framer-motion`/`react-icons` duplicates; replace boilerplate `README.md`.
 2. **Instant search.** Client input with 100ms leading+trailing debounce, `AbortController`, `router.replace` URL sync.
 3. **SWR cache.** Upstash `{ data, cachedAt }`: serve stale immediately, refresh in background with `after()`.
