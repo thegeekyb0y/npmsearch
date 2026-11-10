@@ -23,7 +23,7 @@ Source: https://npmx.dev and https://github.com/npmx-dev/npmx.dev (MIT). Do not 
 
 **Keyboard and shell**
 - Global search focus, command palette (`Ctrl+K`), arrow-key result navigation, Enter to open; shortcuts can be disabled in settings.
-- Persistent top bar; the home page morphs the search into place (we already do this in `app/components/app-frame.tsx`).
+- Persistent top bar; the home page morphs the search into place. We deliberately use a stable 56px bar (`app/components/site-header.tsx`) instead, for predictable LCP and zero layout shift.
 - Every view is a URL: shareable and back/forward-safe.
 
 **Restraint**
@@ -42,10 +42,10 @@ Source: https://npmx.dev and https://github.com/npmx-dev/npmx.dev (MIT). Do not 
 | npmx pattern | Our phase | Where |
 | --- | --- | --- |
 | Registry search with rich result objects | 1 | `app/lib/registry.ts` |
-| Instant search + URL sync | 2 | `app/components/app-frame.tsx` |
+| Instant search + URL sync | 2 | `app/components/search-box.tsx` |
 | Fast repeat searches | 3 | `app/lib/cache.ts` |
 | Infinite scroll, dense rows | 4 | `app/search/page.tsx` |
-| `/`, arrows, Enter, palette | 5 | `app/components/app-frame.tsx` |
+| `/`, arrows, Enter, palette | 5 | `app/components/search-box.tsx` |
 | README polish, proxied relative assets | 6 | `app/package/[name]/page.tsx` |
 | Trend, install size, deps, format/types badges | 7 | package page |
 | `/<pkg>`, `/<pkg>@<version>` | 8 | new route |

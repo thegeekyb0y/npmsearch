@@ -27,10 +27,10 @@ The app is wrapped once with `MotionConfig reducedMotion="user"` in `app/compone
 ## Animate only transform and opacity
 Allowed: `opacity`, `transform` (`x`, `y`, `scale`, `rotate`), and `layout`.
 Not allowed: `width`, `height`, `top`, `left`, `margin`, `padding`, `boxShadow`, `filter: blur`, background-color keyframes.
-Exception already in the codebase: the home→results shell animation moves `top` in `app-frame.tsx`. Do not extend that pattern; if you touch it, convert to a transform-based translate.
+Do not move `top`, `left`, `height` or `width` to fake a layout transition. If an element must move, use `transform` (`translateX/Y`) or a real layout animation, and measure the cost first.
 
 ## Stagger
-- `staggerChildren` **≤ 0.04** (current `0.05` in `StaggerList` is slightly over — fix when touched).
+- `staggerChildren` **≤ 0.04**.
 - Cap the stagger to the first ~10 items: beyond that, render with no delay.
 - Total entrance time should stay under ~400ms.
 
@@ -52,7 +52,7 @@ const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } };
 - **Skeletons → content.** Swap in place; the skeleton must already occupy the final box.
 
 ## Layout animation
-Use `layout` only when an element genuinely changes position and the user initiated it (e.g. the home search shell becoming the top bar, `app-frame.tsx`). Add `layout` to at most 2–3 nested nodes; each one costs a measurement. Never put `layout` on list items inside a scroller.
+Use `layout` only when an element genuinely changes position and the user initiated it. The current app has no such case: the header is static and search results are a list. Add `layout` to at most 2–3 nested nodes; each one costs a measurement. Never put `layout` on list items inside a scroller.
 
 ## Interaction recipes
 - Hover on a result card: border/background color only, 150ms. The existing 2px left accent bar fades via `opacity` (`group-hover:opacity-100`).

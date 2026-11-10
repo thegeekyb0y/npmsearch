@@ -54,10 +54,10 @@ Rules: min = mobile size, max = desktop size, slope between `4vw` and `6vw`. Do 
 - Fixed widths need a mobile fallback: `w-full sm:w-[320px]`.
 
 ## Viewport units and safe areas
-- Prefer `min-h-dvh` over `min-h-screen` for full-height shells (mobile browser chrome). `AppShell` and `app-frame.tsx` currently use `min-h-screen` — change when touched.
+- Prefer `min-h-dvh` over `min-h-screen` for full-height shells (mobile browser chrome). Use `100dvh` in any new full-height container.
 - Respect notches for fixed/sticky elements:
   `pt-[max(16px,env(safe-area-inset-top))]`, `pb-[env(safe-area-inset-bottom)]`.
-- The `app-frame.tsx` header is fixed at 72px and content offsets with `pt-[104px]`. Any header height change must update that offset in the same edit.
+- The header is sticky at 56px (`--header-height`, `app/components/site-header.tsx`). Content flows after it, so do not add a manual top offset. Any header height change goes through the token.
 - Avoid `100vw` for full-bleed elements: it includes the scrollbar. Use `w-full` or `calc(100% - 32px)`.
 
 ## Verification — required before done

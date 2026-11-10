@@ -8,9 +8,9 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 ## Hard constraints
 - **No `tailwind.config.*`.** Design tokens live in `app/globals.css` (`:root` + `@theme inline`). Add tokens there, never in a config file.
 - **pnpm only.** No npm/yarn/bun, one lockfile. `package-lock.json` is legacy: remove it when `pnpm-lock.yaml` is committed.
-- **Server Components by default.** `"use client"` only on interactive leaves (currently `app/components/app-frame.tsx`, `copy-install-button.tsx`, `motion.tsx`). Never on a page unless the whole page is interactive.
-- **One animation library: `motion` (`motion/react`).** `framer-motion` is a duplicate and must be removed; add no other animation imports.
-- **One icon set: `lucide-react`.** `react-icons` is legacy; remove it, never import it again.
+- **Server Components by default.** `"use client"` only on interactive leaves (currently `app/components/search-box.tsx`, `install-block.tsx`, `motion-provider.tsx`). Never on a page unless the whole page is interactive.
+- **One animation library: `motion` (`motion/react`).** `framer-motion` has been removed; never add it back.
+- **One icon set: `lucide-react`.** `react-icons` has been removed; never import it.
 - **Data access in `app/lib/*`** (`registry.ts`, `cache.ts`, ...). Pages call those functions directly.
 - **Never fetch our own `/api` from a server component.** `getBaseUrl()` round-trips are legacy; delete usages as you touch them.
 - **Always `encodeURIComponent()`** user or package input before putting it in an upstream URL.
@@ -41,7 +41,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `data-layer` — registry/downloads fetching, Upstash keys/TTLs, `app/lib/*`.
 
 ## Roadmap — one PR-sized commit per phase
-0. **Foundation.** Hairline tokens and primitives, stable 56px command bar, server shell with a client search island, `motion/react` only, baseline unit/e2e/CI, README and `.env.example`. *(in progress)*
+0. **Foundation.** Hairline tokens and primitives, stable 56px command bar, server shell with a client search island, `motion/react` only, baseline unit/e2e/CI, README and `.env.example`. *(done)*
 1. **Registry migration.** Replace `api.npms.io` with `registry.npmjs.org/-/v1/search`, use `downloads.weekly` from each result, delete per-result download fetches. Move logic to `app/lib/registry.ts`. Fixes: unencoded `q` in `app/api/search/route.ts`; N+1 downloads in `app/search/page.tsx`; remove `framer-motion`/`react-icons` duplicates; replace boilerplate `README.md`.
 2. **Instant search.** Client input with 100ms leading+trailing debounce, `AbortController`, `router.replace` URL sync.
 3. **SWR cache.** Upstash `{ data, cachedAt }`: serve stale immediately, refresh in background with `after()`.

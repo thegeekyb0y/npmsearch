@@ -25,7 +25,7 @@ This repository uses **pnpm only**. Do not commit a second lockfile.
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm test` | Vitest unit tests |
-| `pnpm test:e2e` | Playwright smoke and accessibility tests |
+| `pnpm test:e2e` | Playwright smoke, responsive and axe tests (run `pnpm exec playwright install chromium` once) |
 
 ## Environment
 
@@ -57,4 +57,4 @@ Hairlines over cards, monospace for identifiers and numbers, one accent color, n
 
 ## Status
 
-Phase 0 (foundation and design system) is in progress. See `AGENTS.md` for the roadmap and the skills in `.opencode/skills/` for implementation rules.
+Phase 0 (foundation and design system) is complete: stable 56px shell, hairline primitives, monospace package page, unit/e2e/CI coverage. Phase 1 (registry migration) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

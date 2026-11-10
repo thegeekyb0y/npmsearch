@@ -28,7 +28,7 @@ export function SiteHeader() {
           className="hidden shrink-0 items-center gap-4 font-mono text-[11px] text-text-secondary md:flex"
         >
           <Link
-            href="/search?q=react"
+            href="/search"
             className="transition-colors duration-150 ease-out hover:text-text-primary"
           >
             search
