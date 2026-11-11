@@ -7,7 +7,10 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { FOCUS_RESULTS_EVENT } from "../lib/keyboard-events";
+import { focusGlobalSearch } from "../lib/keyboard";
 import {
   MAX_SEARCH_FROM,
   canLoadMore,
@@ -98,6 +101,7 @@ export function SearchResultsView({
   const abortRef = useRef<AbortController | null>(null);
   const moreAbortRef = useRef<AbortController | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef(new Map<number, HTMLAnchorElement>());
 
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
@@ -325,6 +329,83 @@ export function SearchResultsView({
       data.results[index]?.name ?? `loading-${index}`,
   });
 
+  const requestFocus = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= data.results.length) return;
+
+      // Global smooth scrolling would delay virtualization and lose focus
+      // before the target row is rendered. Keyboard movement is instant.
+      const root = document.documentElement;
+      const previousScrollBehavior = root.style.scrollBehavior;
+      root.style.scrollBehavior = "auto";
+
+      rowVirtualizer.scrollToIndex(index, { align: "auto" });
+
+      let attempts = 0;
+      const focusWhenReady = () => {
+        const link = rowRefs.current.get(index);
+        if (link) {
+          link.focus({ preventScroll: true });
+          root.style.scrollBehavior = previousScrollBehavior;
+          return;
+        }
+
+        if (attempts < 8) {
+          attempts += 1;
+          window.requestAnimationFrame(focusWhenReady);
+        } else {
+          root.style.scrollBehavior = previousScrollBehavior;
+        }
+      };
+
+      window.requestAnimationFrame(focusWhenReady);
+    },
+    [data.results.length, rowVirtualizer],
+  );
+
+  const handleRowKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLAnchorElement>, index: number) => {
+      switch (event.key) {
+        case "ArrowDown":
+          event.preventDefault();
+          requestFocus(index + 1);
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          if (index === 0) {
+            focusGlobalSearch();
+          } else {
+            requestFocus(index - 1);
+          }
+          break;
+        case "Home":
+          event.preventDefault();
+          requestFocus(0);
+          break;
+        case "End":
+          event.preventDefault();
+          requestFocus(data.results.length - 1);
+          break;
+        case "Escape":
+          event.preventDefault();
+          focusGlobalSearch();
+          break;
+      }
+    },
+    [data.results.length, requestFocus],
+  );
+
+  useEffect(() => {
+    function handleFocusResults() {
+      requestFocus(0);
+    }
+
+    window.addEventListener(FOCUS_RESULTS_EVENT, handleFocusResults);
+    return () => {
+      window.removeEventListener(FOCUS_RESULTS_EVENT, handleFocusResults);
+    };
+  }, [requestFocus]);
+
   const isLoading = status === "loading";
   const countLabel = isLoading
     ? "…"
@@ -428,7 +509,23 @@ export function SearchResultsView({
                     transform: `translateY(${virtualRow.start - (listElement?.offsetTop ?? 0)}px)`,
                   }}
                 >
-                  {item ? <SearchRow item={item} /> : <SearchRowSkeleton />}
+                  {item ? (
+                    <SearchRow
+                      item={item}
+                      linkRef={(element) => {
+                        if (element) {
+                          rowRefs.current.set(virtualRow.index, element);
+                        } else {
+                          rowRefs.current.delete(virtualRow.index);
+                        }
+                      }}
+                      onKeyDown={(event) =>
+                        handleRowKeyDown(event, virtualRow.index)
+                      }
+                    />
+                  ) : (
+                    <SearchRowSkeleton />
+                  )}
                 </div>
               );
             })}

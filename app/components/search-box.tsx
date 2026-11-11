@@ -9,10 +9,12 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import { emitFocusResults } from "../lib/keyboard-events";
+import { rememberSearch } from "../lib/recent-searches";
 import { emitSearchQuery } from "../lib/search-events";
 
 const DEBOUNCE_MS = 100;
-const DOCK_SETTLE_MS = 800;
+const DOCK_SETTLE_MS = 3_000;
 
 function getRouteQuery(pathname: string, searchParams: URLSearchParams) {
   const query = searchParams.get("q")?.trim();
@@ -158,6 +160,7 @@ export function SearchBox() {
       return;
     }
 
+    rememberSearch(trimmed);
     markDockAnimation();
     startTransition(() => router.push(target));
   }
@@ -198,6 +201,7 @@ export function SearchBox() {
 
     const target = `/search?q=${encodeURIComponent(trimmed)}`;
     lastAppliedRef.current = trimmed;
+    rememberSearch(trimmed);
 
     if (pathname === "/search") {
       startTransition(() => router.replace(target, { scroll: false }));
@@ -249,7 +253,21 @@ export function SearchBox() {
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"
+          data-global-search
           aria-label="Search npm packages"
+          aria-keyshortcuts="/"
+          onKeyDown={(event) => {
+            if (
+              event.key === "ArrowDown" &&
+              query.trim() &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.altKey
+            ) {
+              event.preventDefault();
+              emitFocusResults();
+            }
+          }}
           placeholder="search packages…"
           className={`min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand ${
             isHome ? "lg:min-h-12 lg:text-[15px]" : ""
@@ -297,7 +315,9 @@ export function SearchBoxFallback() {
         <input
           type="search"
           name="q"
+          data-global-search
           aria-label="Search npm packages"
+          aria-keyshortcuts="/"
           placeholder="search packages…"
           className={`min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary placeholder:text-text-secondary focus:border-brand ${
             isHome ? "lg:min-h-12 lg:text-[15px]" : ""
