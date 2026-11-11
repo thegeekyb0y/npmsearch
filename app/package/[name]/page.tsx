@@ -357,7 +357,7 @@ export default async function PackagePage({
                   data.downloadRange?.end,
                 )}
               </p>
-              <p className="mt-2 mb-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
+              <p className="mt-2 mb-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-brand-2">
                 {typeof data.weeklyDownloads === "number"
                   ? data.weeklyDownloads.toLocaleString("en-US")
                   : "Unknown"}

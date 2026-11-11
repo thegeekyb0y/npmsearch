@@ -5,9 +5,12 @@ import { SearchBox, SearchBoxFallback } from "./search-box";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40">
+    <header className="site-header">
       <HeaderBackdrop />
-      <div className="relative mx-auto flex h-[var(--header-height)] w-full max-w-[var(--container-max)] items-center gap-3 px-4 sm:gap-4 sm:px-6">
+      <div
+        data-header-inner
+        className="relative mx-auto flex h-[var(--header-height)] w-full max-w-[var(--container-max)] items-center gap-3 px-4 sm:gap-4 sm:px-6"
+      >
         <Link
           href="/"
           className="group flex min-h-11 shrink-0 items-center gap-1 font-mono text-[13px] leading-none tracking-[-0.01em]"
@@ -21,7 +24,7 @@ export function SiteHeader() {
           <span className="hidden text-[10px] text-text-secondary lg:inline">v0.1</span>
         </Link>
 
-        <div className="min-w-0 flex-1 lg:pointer-events-none lg:absolute lg:top-0 lg:left-1/2 lg:flex lg:h-[var(--header-height)] lg:w-[min(560px,calc(100vw_-_28rem))] lg:-translate-x-1/2 lg:items-center">
+        <div className="min-w-0 flex-1 lg:max-w-[560px]">
           <Suspense fallback={<SearchBoxFallback />}>
             <SearchBox />
           </Suspense>
@@ -33,7 +36,7 @@ export function SiteHeader() {
         >
           <Link
             href="/search"
-            className="transition-colors duration-150 ease-out hover:text-text-primary"
+            className="transition-colors duration-150 ease-out hover:text-brand"
           >
             search
           </Link>
