@@ -5,6 +5,7 @@ export const CACHE_VERSION = "v1";
 export const CACHE_FRESH_TTL = {
   search: 60,
   package: 300,
+  overview: 300,
   downloads: 300,
   github: 86_400,
   analytics: 3_600,
@@ -13,6 +14,7 @@ export const CACHE_FRESH_TTL = {
 export const CACHE_HARD_TTL = {
   search: 3_600,
   package: 86_400,
+  overview: 86_400,
   downloads: 86_400,
   github: 604_800,
   analytics: 86_400,
@@ -55,6 +57,10 @@ export function searchCacheKey(
 
 export function packageCacheKey(name: string): string {
   return `${CACHE_VERSION}:package:${normalizePackageInput(name)}`;
+}
+
+export function overviewCacheKey(name: string): string {
+  return `${CACHE_VERSION}:overview:${normalizePackageInput(name)}`;
 }
 
 export function downloadsCacheKey(name: string): string {
