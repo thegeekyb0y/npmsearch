@@ -1,5 +1,6 @@
 "use client";
 
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
   startTransition,
   useCallback,
@@ -8,11 +9,19 @@ import {
   useState,
 } from "react";
 import {
+  MAX_SEARCH_FROM,
+  canLoadMore,
+  mergePages,
+  nextPageFrom,
+  reachedSearchCap,
+} from "../lib/search-pagination";
+import {
   SEARCH_QUERY_EVENT,
   type SearchQueryDetail,
 } from "../lib/search-events";
 import type { SearchResults } from "../lib/types";
 import { SearchRow } from "./search-row";
+import { SearchRowSkeleton, SearchSkeleton } from "./skeleton";
 import { StatusPanel } from "./ui";
 
 const CLIENT_CACHE_TTL_MS = 60_000;
@@ -78,17 +87,26 @@ export function SearchResultsView({
   const [query, setQuery] = useState(initialQuery);
   const [data, setData] = useState(initialData);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
   const [previousInitialQuery, setPreviousInitialQuery] =
     useState(initialQuery);
+  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
 
   const loadedQueryRef = useRef(initialQuery);
   const abortRef = useRef<AbortController | null>(null);
+  const moreAbortRef = useRef<AbortController | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
     setQuery(initialQuery);
     setData(initialData);
     setStatus("idle");
+    setIsLoadingMore(false);
+    setMoreError(false);
+    setExhausted(false);
   }
 
   useEffect(() => {
@@ -98,14 +116,21 @@ export function SearchResultsView({
     }
   }, [initialQuery, initialData]);
 
-  const applyData = useCallback((nextQuery: string, nextData: SearchResults) => {
-    loadedQueryRef.current = nextQuery;
-    startTransition(() => {
-      setQuery(nextQuery);
-      setData(nextData);
-      setStatus("idle");
-    });
-  }, []);
+  const applyData = useCallback(
+    (nextQuery: string, nextData: SearchResults) => {
+      loadedQueryRef.current = nextQuery;
+      moreAbortRef.current?.abort();
+      setIsLoadingMore(false);
+      setMoreError(false);
+      setExhausted(false);
+      startTransition(() => {
+        setQuery(nextQuery);
+        setData(nextData);
+        setStatus("idle");
+      });
+    },
+    [],
+  );
 
   const load = useCallback(
     async (rawQuery: string, force = false) => {
@@ -113,6 +138,7 @@ export function SearchResultsView({
 
       if (!next) {
         abortRef.current?.abort();
+        moreAbortRef.current?.abort();
         applyData("", emptyResults());
         return;
       }
@@ -130,10 +156,14 @@ export function SearchResultsView({
       }
 
       abortRef.current?.abort();
+      moreAbortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       loadedQueryRef.current = next;
 
+      setIsLoadingMore(false);
+      setMoreError(false);
+      setExhausted(false);
       setQuery(next);
       setStatus("loading");
 
@@ -168,6 +198,60 @@ export function SearchResultsView({
     [applyData],
   );
 
+  const hasMore =
+    status === "idle" &&
+    !exhausted &&
+    canLoadMore(data) &&
+    nextPageFrom(data) < MAX_SEARCH_FROM;
+
+  const loadMore = useCallback(async () => {
+    if (status !== "idle" || isLoadingMore || !query || !hasMore) return;
+
+    const pageFrom = nextPageFrom(data);
+    const pageSize = data.size || 20;
+
+    moreAbortRef.current?.abort();
+    const controller = new AbortController();
+    moreAbortRef.current = controller;
+
+    setIsLoadingMore(true);
+    setMoreError(false);
+
+    try {
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}&from=${pageFrom}&size=${pageSize}`,
+        {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Search page failed with status ${response.status}`);
+      }
+
+      const json: unknown = await response.json();
+
+      if (!isSearchResults(json)) {
+        throw new Error("Unexpected search page response");
+      }
+
+      if (controller.signal.aborted) return;
+
+      const merged = mergePages(data, json);
+      setExhausted(json.results.length < pageSize);
+
+      startTransition(() => {
+        setData(merged);
+        setIsLoadingMore(false);
+      });
+    } catch {
+      if (controller.signal.aborted) return;
+      setIsLoadingMore(false);
+      setMoreError(true);
+    }
+  }, [data, hasMore, isLoadingMore, query, status]);
+
   useEffect(() => {
     function handleQuery(event: Event) {
       const detail = (event as CustomEvent<SearchQueryDetail>).detail;
@@ -188,8 +272,36 @@ export function SearchResultsView({
       window.removeEventListener(SEARCH_QUERY_EVENT, handleQuery);
       window.removeEventListener("popstate", handlePopState);
       abortRef.current?.abort();
+      moreAbortRef.current?.abort();
     };
   }, [load]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [query]);
+
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || moreError) return;
+
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMore, moreError]);
 
   useEffect(() => {
     const urlQuery =
@@ -204,15 +316,25 @@ export function SearchResultsView({
     return () => window.clearTimeout(timer);
   }, [initialQuery, load]);
 
+  const rowVirtualizer = useWindowVirtualizer({
+    count: data.results.length + (isLoadingMore ? 1 : 0),
+    estimateSize: () => 84,
+    overscan: 8,
+    scrollMargin: listElement?.offsetTop ?? 0,
+    getItemKey: (index) =>
+      data.results[index]?.name ?? `loading-${index}`,
+  });
+
   const isLoading = status === "loading";
   const countLabel = isLoading
     ? "…"
     : status === "error"
       ? "—"
       : data.total.toLocaleString("en-US");
+  const atCap = reachedSearchCap(data);
 
   return (
-    <div aria-busy={isLoading}>
+    <div aria-busy={isLoading || isLoadingMore}>
       <div
         aria-hidden="true"
         className={`h-px w-full ${
@@ -222,7 +344,7 @@ export function SearchResultsView({
       <p className="sr-only" role="status" aria-live="polite">
         {isLoading
           ? "Searching"
-          : `${data.total.toLocaleString("en-US")} results for ${query || "no query"}`}
+          : `${data.results.length.toLocaleString("en-US")} of ${data.total.toLocaleString("en-US")} results for ${query || "no query"}${isLoadingMore ? ", loading more" : ""}`}
       </p>
 
       {query ? (
@@ -257,10 +379,17 @@ export function SearchResultsView({
       ) : null}
 
       {data.results.length === 0 ? (
-        query ? (
+        isLoading ? (
+          <SearchSkeleton rows={6} />
+        ) : query ? (
           <StatusPanel
-            title="No packages found"
-            message={`No results matched "${query}". Try a broader term or a different package name.`}
+            title={status === "error" ? "Search is unavailable" : "No packages found"}
+            message={
+              status === "error"
+                ? "The registry did not respond. Try the same query again in a moment."
+                : `No results matched "${query}". Try a broader term or a different package name.`
+            }
+            error={status === "error"}
           />
         ) : (
           <StatusPanel
@@ -269,15 +398,80 @@ export function SearchResultsView({
           />
         )
       ) : (
-        <div
-          className={`border-t border-border-subtle ${
-            isLoading ? "opacity-60" : "opacity-100"
-          }`}
-        >
-          {data.results.map((item) => (
-            <SearchRow key={item.name} item={item} />
-          ))}
-        </div>
+        <>
+          <div
+            ref={setListElement}
+            role="list"
+            aria-label="Search results"
+            aria-busy={isLoadingMore}
+            className={`relative border-t border-border-subtle ${
+              isLoading ? "opacity-60" : "opacity-100"
+            }`}
+            style={{ height: rowVirtualizer.getTotalSize() }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = data.results[virtualRow.index];
+              const isSkeleton = !item;
+
+              return (
+                <div
+                  key={virtualRow.key}
+                  ref={rowVirtualizer.measureElement}
+                  data-index={virtualRow.index}
+                  role={isSkeleton ? undefined : "listitem"}
+                  aria-setsize={isSkeleton ? undefined : data.total}
+                  aria-posinset={
+                    isSkeleton ? undefined : virtualRow.index + 1
+                  }
+                  className="absolute top-0 left-0 w-full"
+                  style={{
+                    transform: `translateY(${virtualRow.start - (listElement?.offsetTop ?? 0)}px)`,
+                  }}
+                >
+                  {item ? <SearchRow item={item} /> : <SearchRowSkeleton />}
+                </div>
+              );
+            })}
+          </div>
+
+          {hasMore ? (
+            <div
+              ref={sentinelRef}
+              className="flex flex-col items-center gap-2 border-t border-border-subtle py-4"
+            >
+              {moreError ? (
+                <p role="alert" className="m-0 text-[12px] text-destructive">
+                  Couldn&apos;t load more results.
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={isLoadingMore}
+                className="inline-flex min-h-11 items-center rounded-[var(--radius-sm)] border border-border-subtle px-4 font-mono text-[11px] text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoadingMore
+                  ? "loading…"
+                  : moreError
+                    ? "retry"
+                    : "load more"}
+              </button>
+              <span className="font-mono text-[10px] text-text-secondary">
+                {data.results.length.toLocaleString("en-US")} of{" "}
+                {data.total.toLocaleString("en-US")} shown
+              </span>
+            </div>
+          ) : atCap ? (
+            <p className="m-0 border-t border-border-subtle py-4 text-center font-mono text-[11px] text-text-secondary">
+              Showing the first {MAX_SEARCH_FROM.toLocaleString("en-US")} results.
+              Refine your search.
+            </p>
+          ) : (
+            <p className="m-0 border-t border-border-subtle py-4 text-center font-mono text-[11px] text-text-secondary">
+              end of results · {data.results.length.toLocaleString("en-US")} shown
+            </p>
+          )}
+        </>
       )}
     </div>
   );
