@@ -14,7 +14,7 @@ export type CacheEntry<T> = {
   cachedAt: number;
 };
 
-const CACHE_TIMEOUT_MS = 500;
+const CACHE_TIMEOUT_MS = 1_500;
 const FAILURE_COOLDOWN_MS = 30_000;
 
 let unavailableUntil = 0;
