@@ -123,6 +123,12 @@
   }
 }
 
+@media (min-width: 1024px) {
+  .home-search-space {
+    margin-top: max(3rem, calc(50dvh - 240px));
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
