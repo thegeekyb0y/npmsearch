@@ -21,7 +21,8 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/globals.css` — tokens. Utilities: `bg-background|surface|surface-code`, `border-border-subtle|strong`, `text-text-primary|secondary|muted`, `text-brand|bg-brand`, `font-mono`. Radii: `rounded-[var(--radius-sm)]` or `rounded-[var(--radius-md)]`.
 - `app/components/ui.tsx` — `AppShell`, `PageContainer`, `SectionTitle`, `VersionBadge`, `ExactBadge`, `ExternalLink`, `StatusPanel`, `CopyButton`. Reuse before inventing.
 - `app/components/motion-provider.tsx` — `MotionConfig reducedMotion="user"`.
-- `app/components/site-header.tsx` + `search-box.tsx` — server shell and client search island.
+- `app/components/site-header.tsx` + `search-box.tsx` — server shell and debounced client search island.
+- `app/components/search-results.tsx` + `app/lib/search-events.ts` — client results, aborting fetches, 60s query cache.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).
@@ -44,7 +45,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 ## Roadmap — one PR-sized commit per phase
 0. **Foundation.** Hairline tokens and primitives, stable 56px command bar, server shell with a client search island, `motion/react` only, baseline unit/e2e/CI, README and `.env.example`. *(done)*
 1. **Registry migration.** `registry.npmjs.org/-/v1/search`, `downloads.weekly`, direct lib access, GitHub stats, validated routes, error states. *(done)*
-2. **Instant search.** Client input with 100ms leading+trailing debounce, `AbortController`, `router.replace` URL sync.
+2. **Instant search.** 100ms leading+trailing debounce, `AbortController`, URL sync, client query cache. *(done)*
 3. **SWR cache.** Upstash `{ data, cachedAt }`: serve stale immediately, refresh in background with `after()`.
 4. **Infinite scroll.** Virtualized list using registry `from=` pagination, plus search skeletons.
 5. **Keyboard layer.** `/` focuses search, arrow-key navigation, Enter opens, command palette.

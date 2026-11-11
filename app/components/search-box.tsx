@@ -2,7 +2,16 @@
 
 import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { startTransition, useState, type FormEvent } from "react";
+import {
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import { emitSearchQuery } from "../lib/search-events";
+
+const DEBOUNCE_MS = 100;
 
 function getRouteQuery(pathname: string, searchParams: URLSearchParams) {
   const query = searchParams.get("q")?.trim();
@@ -21,17 +30,122 @@ export function SearchBox() {
   const [query, setQuery] = useState(routeQuery);
   const [previousRouteQuery, setPreviousRouteQuery] = useState(routeQuery);
 
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAppliedRef = useRef(routeQuery);
+  const hasLeadingFiredRef = useRef(false);
+  const composingRef = useRef(false);
+
   if (routeQuery !== previousRouteQuery) {
     setPreviousRouteQuery(routeQuery);
     setQuery(routeQuery);
   }
 
+  useEffect(() => {
+    lastAppliedRef.current = routeQuery;
+  }, [routeQuery]);
+
+  useEffect(() => {
+    function handlePopState() {
+      const params = new URLSearchParams(window.location.search);
+      const urlQuery = params.get("q")?.trim() ?? "";
+
+      if (urlQuery) {
+        setQuery(urlQuery);
+        lastAppliedRef.current = urlQuery;
+        return;
+      }
+
+      if (window.location.pathname.startsWith("/package/")) {
+        const packageName = decodeURIComponent(
+          window.location.pathname.replace("/package/", ""),
+        );
+        setQuery(packageName);
+        lastAppliedRef.current = packageName;
+        return;
+      }
+
+      setQuery("");
+      lastAppliedRef.current = "";
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  function applyQuery(raw: string) {
+    const trimmed = raw.trim();
+
+    if (trimmed === lastAppliedRef.current) return;
+    lastAppliedRef.current = trimmed;
+
+    const target = trimmed
+      ? `/search?q=${encodeURIComponent(trimmed)}`
+      : "/search";
+
+    if (pathname === "/search") {
+      window.history.replaceState(null, "", target);
+      emitSearchQuery(trimmed);
+      return;
+    }
+
+    if (!trimmed) {
+      startTransition(() => router.push("/"));
+      return;
+    }
+
+    startTransition(() => router.push(target));
+  }
+
+  function schedule(value: string) {
+    if (composingRef.current) return;
+
+    // Fire once at the start of a burst, then once after typing stops.
+    if (pathname === "/search" && !hasLeadingFiredRef.current) {
+      hasLeadingFiredRef.current = true;
+      applyQuery(value);
+    }
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    timerRef.current = setTimeout(() => {
+      hasLeadingFiredRef.current = false;
+      applyQuery(value);
+      timerRef.current = null;
+    }, DEBOUNCE_MS);
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    hasLeadingFiredRef.current = false;
+
     const trimmed = query.trim();
-    startTransition(() => {
-      router.push(trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : "/");
-    });
+
+    if (!trimmed) {
+      startTransition(() => router.push("/"));
+      return;
+    }
+
+    const target = `/search?q=${encodeURIComponent(trimmed)}`;
+    lastAppliedRef.current = trimmed;
+
+    if (pathname === "/search") {
+      startTransition(() => router.replace(target, { scroll: false }));
+      emitSearchQuery(trimmed);
+      return;
+    }
+
+    startTransition(() => router.push(target));
   }
 
   return (
@@ -53,7 +167,18 @@ export function SearchBox() {
           type="search"
           name="q"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            const value = event.target.value;
+            setQuery(value);
+            schedule(value);
+          }}
+          onCompositionStart={() => {
+            composingRef.current = true;
+          }}
+          onCompositionEnd={(event) => {
+            composingRef.current = false;
+            schedule(event.currentTarget.value);
+          }}
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"

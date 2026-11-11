@@ -43,7 +43,7 @@ Never commit `.env`. Missing `GITHUB_TOKEN` must never fail a build or a page re
 ## Architecture
 
 - `app/lib/*` — registry, downloads, GitHub and cache access. Pages call this directly.
-- `app/components/ui.tsx` — shared primitives; `app/components/*` — interactive islands.
+- `app/components/ui.tsx` — shared primitives; `app/components/search-results.tsx` — client results with aborting fetches and a 60s query cache.
 - `app/search/page.tsx` — search route.
 - `app/package/[name]/page.tsx` — package route and README.
 - `app/api/search/route.ts` — validated HTTP adapter for client-side instant search.
@@ -57,4 +57,4 @@ Hairlines over cards, monospace for identifiers and numbers, one accent color, n
 
 ## Status
 
-Phase 0 (foundation and design system) and phase 1 (registry migration) are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, and full error states. Phase 2 (instant search) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.
+Phases 0–2 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, and instant debounced search with a client query cache. Phase 3 (stale-while-revalidate cache) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

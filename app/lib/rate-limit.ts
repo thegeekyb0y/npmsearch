@@ -1,7 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { getRedis } from "./redis";
 
-const REQUEST_TIMEOUT_MS = 500;
+const REQUEST_TIMEOUT_MS = 1_000;
 const FAILURE_COOLDOWN_MS = 30_000;
 const SEARCH_LIMIT = {
   tokens: 30,
