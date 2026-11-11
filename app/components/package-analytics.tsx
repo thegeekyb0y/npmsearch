@@ -54,6 +54,15 @@ export async function PackageAnalyticsRail({
                 <div className="min-w-0">
                   <Link
                     href={`/package/${encodeURIComponent(dependency.name)}`}
+                    data-preview-title={dependency.name}
+                    data-preview-subtitle={
+                      dependency.latest
+                        ? `${dependency.range} → ${dependency.latest}`
+                        : dependency.range
+                    }
+                    data-preview-meta={
+                      dependency.outdated ? "outdated" : undefined
+                    }
                     className="block truncate font-mono text-[12px] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
                   >
                     {dependency.name}

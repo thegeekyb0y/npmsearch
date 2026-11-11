@@ -182,6 +182,9 @@ export default async function PackagePage({
                       href={repositoryUrl}
                       target="_blank"
                       rel="noreferrer noopener"
+                      data-preview-title={repositoryLabel || "repository"}
+                      data-preview-subtitle={repositoryUrl}
+                      data-preview-meta="repository"
                       className="inline-flex min-h-11 min-w-0 items-center gap-1.5 transition-colors duration-150 ease-out hover:text-text-primary"
                     >
                       <Github

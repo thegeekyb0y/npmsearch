@@ -28,6 +28,10 @@ export function SearchRow({
   onFocus?: FocusEventHandler<HTMLAnchorElement>;
 }) {
   const publishedAt = formatDate(item.publishedAt);
+  const downloadsLabel =
+    typeof item.weeklyDownloads === "number"
+      ? `${new Intl.NumberFormat("en-US", { notation: "compact" }).format(item.weeklyDownloads)} / wk`
+      : undefined;
 
   return (
     <Link
@@ -35,6 +39,13 @@ export function SearchRow({
       href={`/package/${item.name}`}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
+      data-preview-title={item.name}
+      data-preview-subtitle={
+        item.description?.trim() || "No description provided."
+      }
+      data-preview-meta={[`v${item.version}`, downloadsLabel]
+        .filter(Boolean)
+        .join(" · ")}
       className="group relative block border-b border-border-subtle transition-colors duration-150 ease-out hover:bg-surface-hover focus-visible:bg-surface-hover"
     >
       <span
@@ -57,9 +68,7 @@ export function SearchRow({
         <div className="shrink-0 text-right font-mono text-[11px] leading-5 text-text-secondary">
           {publishedAt ? <div className="hidden sm:block">{publishedAt}</div> : null}
           <div className="text-brand-2">
-            {typeof item.weeklyDownloads === "number"
-              ? `${new Intl.NumberFormat("en-US", { notation: "compact" }).format(item.weeklyDownloads)} / wk`
-              : "—"}
+            {downloadsLabel ?? "—"}
           </div>
         </div>
       </div>
