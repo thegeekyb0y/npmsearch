@@ -1,5 +1,15 @@
 import { z } from "zod";
-import { CACHE_TTL, cacheGet, cacheSet, githubCacheKey } from "./cache";
+import { runInBackground } from "./background";
+import {
+  CACHE_FRESH_TTL,
+  CACHE_HARD_TTL,
+  cacheDelete,
+  cacheGetEntry,
+  cacheSet,
+  githubCacheKey,
+  isExpired,
+  isFresh,
+} from "./cache";
 import { getGithubToken } from "./env";
 import type { GithubStats } from "./types";
 
@@ -97,12 +107,26 @@ export async function getGithubStats(
   if (!ref) return null;
 
   const cacheKey = githubCacheKey(ref.owner, ref.repo);
-  const cached = await cacheGet<GithubStats>(cacheKey);
+  const entry = await cacheGetEntry<GithubStats>(cacheKey);
 
-  if (cached !== null) {
-    return cached;
+  if (entry && !isExpired(entry, CACHE_HARD_TTL.github)) {
+    if (!isFresh(entry, CACHE_FRESH_TTL.github)) {
+      runInBackground(cacheKey, async () => {
+        await refreshGithub(ref, token, cacheKey);
+      });
+    }
+
+    return entry.data;
   }
 
+  return refreshGithub(ref, token, cacheKey);
+}
+
+async function refreshGithub(
+  ref: GithubRepoRef,
+  token: string,
+  cacheKey: string,
+): Promise<GithubStats | null> {
   let response: Response;
 
   try {
@@ -128,6 +152,8 @@ export async function getGithubStats(
       console.warn(
         `GitHub stats unavailable for ${ref.owner}/${ref.repo}: ${response.status}`,
       );
+    } else {
+      await cacheDelete(cacheKey);
     }
     return null;
   }
@@ -150,7 +176,7 @@ export async function getGithubStats(
     url: parsed.data.html_url ?? ref.url,
   };
 
-  await cacheSet(cacheKey, data, CACHE_TTL.github);
+  await cacheSet(cacheKey, data, CACHE_HARD_TTL.github);
 
   return data;
 }

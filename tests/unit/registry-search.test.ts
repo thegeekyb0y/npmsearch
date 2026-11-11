@@ -1,16 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "../fixtures/registry/search.json";
 
+const { backgroundTasks } = vi.hoisted(() => ({
+  backgroundTasks: [] as Array<() => Promise<void>>,
+}));
+
+vi.mock("../../app/lib/background", () => ({
+  runInBackground: (_key: string, task: () => Promise<void>) => {
+    backgroundTasks.push(task);
+  },
+}));
+
 vi.mock("../../app/lib/cache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../app/lib/cache")>();
   return {
     ...actual,
-    cacheGet: vi.fn(),
+    cacheGetEntry: vi.fn(),
     cacheSet: vi.fn(),
+    cacheDelete: vi.fn(),
   };
 });
 
-import { cacheGet, cacheSet } from "../../app/lib/cache";
+import { CACHE_HARD_TTL, cacheGetEntry, cacheSet } from "../../app/lib/cache";
 import {
   RegistryError,
   buildSearchUrl,
@@ -25,7 +36,8 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
-  vi.mocked(cacheGet).mockResolvedValue(null);
+  backgroundTasks.length = 0;
+  vi.mocked(cacheGetEntry).mockResolvedValue(null);
   vi.mocked(cacheSet).mockResolvedValue(undefined);
 });
 
@@ -84,21 +96,74 @@ describe("searchPackages", () => {
     expect(cacheSet).toHaveBeenCalledWith(
       expect.stringContaining("v1:search:react"),
       data,
-      60,
+      CACHE_HARD_TTL.search,
     );
   });
 
-  it("returns a cached page without calling the registry", async () => {
+  it("returns a fresh cached page without calling the registry", async () => {
     const cached = {
       total: 1,
       results: [],
       from: 0,
       size: 20,
     };
-    vi.mocked(cacheGet).mockResolvedValue(cached);
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now(),
+    });
 
     await expect(searchPackages("react")).resolves.toEqual(cached);
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(0);
+  });
+
+  it("serves stale results and schedules a background refresh", async () => {
+    const cached = {
+      total: 1,
+      results: [],
+      from: 0,
+      size: 20,
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - 61_000,
+    });
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(fixture), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(searchPackages("react")).resolves.toEqual(cached);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(1);
+
+    await backgroundTasks[0]();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cacheSet).toHaveBeenCalledWith(
+      expect.stringContaining("v1:search:react"),
+      expect.objectContaining({ total: 207550 }),
+      CACHE_HARD_TTL.search,
+    );
+  });
+
+  it("treats a hard-expired entry as a miss", async () => {
+    const stale = { total: 1, results: [], from: 0, size: 20 };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: stale,
+      cachedAt: Date.now() - (CACHE_HARD_TTL.search + 1) * 1_000,
+    });
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(fixture), { status: 200 }),
+    );
+
+    const data = await searchPackages("react");
+
+    expect(data.total).toBe(207550);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(backgroundTasks).toHaveLength(0);
   });
 
   it("throws a RegistryError for a non-OK response", async () => {

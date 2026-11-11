@@ -2,12 +2,22 @@ import { getRedis } from "./redis";
 
 export const CACHE_VERSION = "v1";
 
-export const CACHE_TTL = {
+export const CACHE_FRESH_TTL = {
   search: 60,
   package: 300,
   downloads: 300,
   github: 86_400,
 } as const;
+
+export const CACHE_HARD_TTL = {
+  search: 3_600,
+  package: 86_400,
+  downloads: 86_400,
+  github: 604_800,
+} as const;
+
+/** Backwards-compatible alias for the fresh window. */
+export const CACHE_TTL = CACHE_FRESH_TTL;
 
 export type CacheEntry<T> = {
   data: T;
@@ -101,11 +111,27 @@ function isCacheEntry<T>(value: unknown): value is CacheEntry<T> {
   );
 }
 
+export function isFresh(
+  entry: CacheEntry<unknown>,
+  freshSeconds: number,
+): boolean {
+  return Date.now() - entry.cachedAt < freshSeconds * 1_000;
+}
+
+export function isExpired(
+  entry: CacheEntry<unknown>,
+  hardSeconds: number,
+): boolean {
+  return Date.now() - entry.cachedAt >= hardSeconds * 1_000;
+}
+
 /**
  * Cache failures are intentionally silent to callers: a missing or broken
  * Redis must degrade to a normal upstream request, never an error page.
  */
-export async function cacheGet<T>(key: string): Promise<T | null> {
+export async function cacheGetEntry<T>(
+  key: string,
+): Promise<CacheEntry<T> | null> {
   const redis = resolveClient();
   if (!redis || !isAvailable()) return null;
 
@@ -131,7 +157,12 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
     }
   }
 
-  return isCacheEntry<T>(parsed) ? parsed.data : null;
+  return isCacheEntry<T>(parsed) ? parsed : null;
+}
+
+export async function cacheGet<T>(key: string): Promise<T | null> {
+  const entry = await cacheGetEntry<T>(key);
+  return entry ? entry.data : null;
 }
 
 export async function cacheSet<T>(

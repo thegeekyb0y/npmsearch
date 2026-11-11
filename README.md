@@ -57,4 +57,4 @@ Hairlines over cards, monospace for identifiers and numbers, one accent color, n
 
 ## Status
 
-Phases 0–2 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, and instant debounced search with a client query cache. Phase 3 (stale-while-revalidate cache) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.
+Phases 0–3 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, instant debounced search, and stale-while-revalidate caching with background refresh. Phase 4 (virtualized infinite scroll) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

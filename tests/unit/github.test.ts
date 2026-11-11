@@ -1,15 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const { backgroundTasks } = vi.hoisted(() => ({
+  backgroundTasks: [] as Array<() => Promise<void>>,
+}));
+
+vi.mock("../../app/lib/background", () => ({
+  runInBackground: (_key: string, task: () => Promise<void>) => {
+    backgroundTasks.push(task);
+  },
+}));
+
 vi.mock("../../app/lib/cache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../app/lib/cache")>();
   return {
     ...actual,
-    cacheGet: vi.fn(),
+    cacheGetEntry: vi.fn(),
     cacheSet: vi.fn(),
+    cacheDelete: vi.fn(),
   };
 });
 
-import { cacheGet, cacheSet } from "../../app/lib/cache";
+import {
+  CACHE_HARD_TTL,
+  cacheDelete,
+  cacheGetEntry,
+  cacheSet,
+} from "../../app/lib/cache";
 import { getGithubStats, parseGithubRepo } from "../../app/lib/github";
 
 const fetchMock = vi.fn();
@@ -17,9 +33,12 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
-  vi.mocked(cacheGet).mockResolvedValue(null);
+  backgroundTasks.length = 0;
+  vi.mocked(cacheGetEntry).mockResolvedValue(null);
   vi.mocked(cacheSet).mockResolvedValue(undefined);
   vi.mocked(cacheSet).mockClear();
+  vi.mocked(cacheDelete).mockResolvedValue(undefined);
+  vi.mocked(cacheDelete).mockClear();
 });
 
 afterEach(() => {
@@ -93,27 +112,66 @@ describe("getGithubStats", () => {
     expect(cacheSet).toHaveBeenCalledWith(
       "v1:github:facebook/react",
       stats,
-      86400,
+      CACHE_HARD_TTL.github,
     );
   });
 
   it("returns cached stats without fetching", async () => {
     const cached = { stars: 1, forks: 2, issues: 3, url: "https://github.com/a/b" };
-    vi.mocked(cacheGet).mockResolvedValue(cached);
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now(),
+    });
 
     await expect(getGithubStats("https://github.com/a/b", "token")).resolves.toEqual(
       cached,
     );
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(0);
   });
 
-  it("returns null on 404 without caching", async () => {
+  it("serves stale stats and refreshes them in the background", async () => {
+    const cached = { stars: 1, forks: 2, issues: 3, url: "https://github.com/a/b" };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - 90_000_000,
+    });
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          stargazers_count: 4,
+          forks_count: 5,
+          open_issues_count: 6,
+          html_url: "https://github.com/a/b",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(getGithubStats("https://github.com/a/b", "token")).resolves.toEqual(
+      cached,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(1);
+
+    await backgroundTasks[0]();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cacheSet).toHaveBeenCalledWith(
+      "v1:github:a/b",
+      expect.objectContaining({ stars: 4 }),
+      CACHE_HARD_TTL.github,
+    );
+  });
+
+  it("returns null on 404 and clears any stale entry", async () => {
     fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
 
     await expect(
       getGithubStats("https://github.com/facebook/react", "token"),
     ).resolves.toBeNull();
     expect(cacheSet).not.toHaveBeenCalled();
+    expect(cacheDelete).toHaveBeenCalledWith("v1:github:facebook/react");
   });
 
   it("returns null on malformed or failed responses", async () => {
