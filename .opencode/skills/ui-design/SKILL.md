@@ -12,20 +12,23 @@ All tokens live in `app/globals.css`. Never hardcode a hex that a token covers.
 
 | Purpose | Token | Value |
 | --- | --- | --- |
-| Page | `--background` | `#0a0a0a` |
-| Card/panel | `--surface` | `#111111` |
-| Code/input | `--surface-code` | `#0d0d0d` |
-| Hairline | `--border-subtle` | `#1f1f1f` |
-| Emphasis border | `--border-strong` | `#2a2a2a` |
-| Primary text | `--text-primary` | `#ededed` |
-| Secondary text | `--text-secondary` | `#a1a1a1` |
-| Muted/meta | `--text-muted` | `#525252` |
-| Accent | `--accent` | `#f56e0f` |
-| Accent hover | `--accent-hover` | `#dc5f0a` |
+| Page | `--background` | `#0b0d10` |
+| Card/panel | `--surface` | `#12151a` |
+| Code/input | `--surface-code` | `#0e1116` |
+| Raised | `--surface-raised` | `#171b21` |
+| Hairline | `--border-subtle` | `#232831` |
+| Emphasis border | `--border-strong` | `#343b46` |
+| Primary text | `--text-primary` | `#f0f2f5` |
+| Secondary text | `--text-secondary` | `#aab2bf` |
+| Muted/meta | `--text-muted` | `#5f6875` |
+| Accent | `--accent` | `#ff7a1a` |
+| Accent hover | `--accent-hover` | `#e56a0c` |
+| Secondary accent | `--accent-2` | `#5eead4` |
 | Radius | `--radius-sm` 4px, `--radius-md` 6px | |
-| Container | `--container-max` 1080px | |
+| Container | `--container-max` 1200px | |
 
-Tailwind utilities come from `@theme inline`: `bg-background`, `bg-surface`, `bg-surface-code`, `border-border-subtle`, `border-border-strong`, `text-text-primary`, `text-text-secondary`, `text-text-muted`, `text-brand`, `bg-brand`, `hover:bg-brand-hover`, `text-success`, `text-destructive`, `font-sans`, `font-mono`.
+Tailwind utilities come from `@theme inline`: `bg-background`, `bg-surface`, `bg-surface-code`, `bg-surface-raised`, `bg-surface-overlay`, `border-border-subtle`, `border-border-strong`, `text-text-primary`, `text-text-secondary`, `text-text-muted`, `text-brand`, `bg-brand`, `hover:bg-brand-hover`, `text-brand-2`, `text-success`, `text-destructive`, `font-sans`, `font-mono`.
+Use `text-brand-2` for secondary metrics (weekly downloads), and `text-brand` for actions, active states, and the small workflow numbers. Keep the page mostly neutral; color is an accent, not a background.
 Soft accent values are not utilities: use `bg-[var(--accent-soft-bg)]` and `border-[var(--accent-soft-border)]` (see `ExactBadge` in `app/components/ui.tsx`).
 
 ## Type scale
