@@ -28,8 +28,17 @@ export function normalizePackageInput(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function searchCacheKey(query: string): string {
-  return `${CACHE_VERSION}:search:${normalizeSearchInput(query)}`;
+export const DEFAULT_SEARCH_PAGE_SIZE = 20;
+
+export function searchCacheKey(
+  query: string,
+  from = 0,
+  size = DEFAULT_SEARCH_PAGE_SIZE,
+): string {
+  const base = `${CACHE_VERSION}:search:${normalizeSearchInput(query)}`;
+  return from === 0 && size === DEFAULT_SEARCH_PAGE_SIZE
+    ? base
+    : `${base}:${from}:${size}`;
 }
 
 export function packageCacheKey(name: string): string {

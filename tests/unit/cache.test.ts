@@ -43,6 +43,13 @@ describe("cache keys", () => {
     expect(key.endsWith("a".repeat(200))).toBe(true);
   });
 
+  it("includes pagination only when it differs from the default page", () => {
+    expect(searchCacheKey("react")).toBe(`${CACHE_VERSION}:search:react`);
+    expect(searchCacheKey("react", 40, 20)).toBe(
+      `${CACHE_VERSION}:search:react:40:20`,
+    );
+  });
+
   it("normalizes package names and keeps scopes", () => {
     expect(packageCacheKey("  @Scope/Name ")).toBe(`${CACHE_VERSION}:package:@scope/name`);
     expect(downloadsCacheKey("React")).toBe(`${CACHE_VERSION}:downloads:react`);
