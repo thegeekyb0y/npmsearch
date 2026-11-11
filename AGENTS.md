@@ -27,10 +27,11 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/components/global-shortcuts.tsx` + `command-palette.tsx` — `/`, `Ctrl/Cmd+K`, arrows, Enter, Escape; native dialog palette.
 - `app/lib/keyboard.ts`, `keyboard-events.ts`, `recent-searches.ts`, `popular.ts` — shortcut guards and palette data.
 - `app/lib/readme.ts` + `readme-copy.tsx` — raw HTML sanitize, relative URL rewrite, Shiki, TOC, copy buttons.
+- `app/lib/analytics.ts` + `app/lib/semver.ts` — install-size crawl, dependency freshness, ESM/CJS/types detection.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).
-- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open fresh/hard TTL), `app/lib/background.ts` (`after()` refresh, deduped), `app/lib/registry.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`.
+- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open fresh/hard TTL), `app/lib/background.ts` (`after()` refresh, deduped), `app/lib/registry.ts`, `app/lib/analytics.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`.
 
 ## Definition of done
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass.
@@ -54,7 +55,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 4. **Infinite scroll.** Window-virtualized results, `from=` pagination, dedupe, sentinel + load-more fallback, 1,000-result cap. *(done)*
 5. **Keyboard layer.** `/`, `Ctrl/Cmd+K` native-dialog palette, ArrowUp/Down/Home/End through virtualized results, Enter opens, Escape returns to search. *(done)*
 6. **README.** `rehype-raw` + custom `rehype-sanitize` schema, relative URL rewrite against GitHub `HEAD`, server Shiki, TOC, copy buttons; `react-syntax-highlighter` removed. *(done)*
-7. **Analytics.** 30-day download trend, install size, dependency list with outdated flags, ESM/CJS + types badges.
+7. **Analytics.** 30-day download trend, install size, dependency list with outdated flags, ESM/CJS + types badges. *(done)*
 8. **Short routes.** `/<pkg>` and `/<pkg>@<version>`.
 9. **(V2) Accounts.** Better Auth + Prisma + Postgres, collections.
 
