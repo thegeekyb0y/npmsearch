@@ -1,12 +1,17 @@
 import { z } from "zod";
 import {
-  CACHE_TTL,
+  CACHE_FRESH_TTL,
+  CACHE_HARD_TTL,
   DEFAULT_SEARCH_PAGE_SIZE,
-  cacheGet,
+  cacheDelete,
+  cacheGetEntry,
   cacheSet,
+  isExpired,
+  isFresh,
   packageCacheKey,
   searchCacheKey,
 } from "./cache";
+import { runInBackground } from "./background";
 import { getGithubStats } from "./github";
 import type {
   DownloadPoint,
@@ -133,24 +138,12 @@ function mapSearchObject(
   };
 }
 
-export async function searchPackages(
-  query: string,
-  options: { from?: number; size?: number } = {},
+async function refreshSearch(
+  normalized: string,
+  from: number,
+  size: number,
+  cacheKey: string,
 ): Promise<SearchResults> {
-  const normalized = normalizeQuery(query);
-  const { from, size } = clampSearchParams(options);
-
-  if (!normalized) {
-    return { total: 0, results: [], from, size };
-  }
-
-  const cacheKey = searchCacheKey(normalized, from, size);
-  const cached = await cacheGet<SearchResults>(cacheKey);
-
-  if (cached !== null) {
-    return cached;
-  }
-
   let response: Response;
 
   try {
@@ -196,9 +189,36 @@ export async function searchPackages(
     size,
   };
 
-  await cacheSet(cacheKey, data, CACHE_TTL.search);
+  await cacheSet(cacheKey, data, CACHE_HARD_TTL.search);
 
   return data;
+}
+
+export async function searchPackages(
+  query: string,
+  options: { from?: number; size?: number } = {},
+): Promise<SearchResults> {
+  const normalized = normalizeQuery(query);
+  const { from, size } = clampSearchParams(options);
+
+  if (!normalized) {
+    return { total: 0, results: [], from, size };
+  }
+
+  const cacheKey = searchCacheKey(normalized, from, size);
+  const entry = await cacheGetEntry<SearchResults>(cacheKey);
+
+  if (entry && !isExpired(entry, CACHE_HARD_TTL.search)) {
+    if (!isFresh(entry, CACHE_FRESH_TTL.search)) {
+      runInBackground(cacheKey, async () => {
+        await refreshSearch(normalized, from, size, cacheKey);
+      });
+    }
+
+    return entry.data;
+  }
+
+  return refreshSearch(normalized, from, size, cacheKey);
 }
 
 const licenseSchema = z
@@ -397,28 +417,17 @@ async function fetchDownloads(
   }
 }
 
-export async function getPackage(
-  name: string,
+async function refreshPackage(
+  normalized: string,
+  cacheKey: string,
 ): Promise<PackageDetail | null> {
-  const normalized = normalizePackageName(name);
-
-  if (!isValidPackageName(normalized)) {
-    return null;
-  }
-
-  const cacheKey = packageCacheKey(normalized);
-  const cached = await cacheGet<PackageDetail>(cacheKey);
-
-  if (cached !== null) {
-    return cached;
-  }
-
   const [packument, downloads] = await Promise.all([
     fetchPackument(normalized),
     fetchDownloads(normalized),
   ]);
 
   if (!packument) {
+    await cacheDelete(cacheKey);
     return null;
   }
 
@@ -472,7 +481,32 @@ export async function getPackage(
     github: github ?? undefined,
   };
 
-  await cacheSet(cacheKey, data, CACHE_TTL.package);
+  await cacheSet(cacheKey, data, CACHE_HARD_TTL.package);
 
   return data;
+}
+
+export async function getPackage(
+  name: string,
+): Promise<PackageDetail | null> {
+  const normalized = normalizePackageName(name);
+
+  if (!isValidPackageName(normalized)) {
+    return null;
+  }
+
+  const cacheKey = packageCacheKey(normalized);
+  const entry = await cacheGetEntry<PackageDetail>(cacheKey);
+
+  if (entry && !isExpired(entry, CACHE_HARD_TTL.package)) {
+    if (!isFresh(entry, CACHE_FRESH_TTL.package)) {
+      runInBackground(cacheKey, async () => {
+        await refreshPackage(normalized, cacheKey);
+      });
+    }
+
+    return entry.data;
+  }
+
+  return refreshPackage(normalized, cacheKey);
 }
