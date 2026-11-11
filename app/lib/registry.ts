@@ -11,6 +11,7 @@ import {
   overviewCacheKey,
   packageCacheKey,
   searchCacheKey,
+  versionOverviewCacheKey,
 } from "./cache";
 import { runInBackground } from "./background";
 import { getGithubStats } from "./github";
@@ -449,14 +450,15 @@ async function fetchDownloads(
   }
 }
 
-async function fetchLatestManifest(
+async function fetchManifest(
   name: string,
+  selector: string,
 ): Promise<LatestManifest | null> {
   let response: Response;
 
   try {
     response = await fetch(
-      `${REGISTRY_BASE}/${encodeURIComponent(name)}/latest`,
+      `${REGISTRY_BASE}/${encodeURIComponent(name)}/${encodeURIComponent(selector)}`,
       {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -516,21 +518,11 @@ function buildDownloadSummary(
   };
 }
 
-async function refreshOverview(
-  normalized: string,
-  cacheKey: string,
-): Promise<PackageOverview | null> {
-  const [manifest, downloads] = await Promise.all([
-    fetchLatestManifest(normalized),
-    fetchDownloads(normalized),
-  ]);
-
-  if (!manifest) {
-    await cacheDelete(cacheKey);
-    return null;
-  }
-
-  const data: PackageOverview = {
+function buildOverview(
+  manifest: LatestManifest,
+  downloads: z.infer<typeof downloadsRangeSchema> | null,
+): PackageOverview {
+  return {
     name: manifest.name,
     description: manifest.description?.trim() || undefined,
     license: normalizeLicense(manifest.license),
@@ -545,6 +537,24 @@ async function refreshOverview(
     latestVersionInfo: buildLatestVersionInfo(manifest),
     ...buildDownloadSummary(downloads),
   };
+}
+
+async function refreshOverview(
+  normalized: string,
+  cacheKey: string,
+  selector: string,
+): Promise<PackageOverview | null> {
+  const [manifest, downloads] = await Promise.all([
+    fetchManifest(normalized, selector),
+    fetchDownloads(normalized),
+  ]);
+
+  if (!manifest) {
+    await cacheDelete(cacheKey);
+    return null;
+  }
+
+  const data = buildOverview(manifest, downloads);
 
   await cacheSet(cacheKey, data, CACHE_HARD_TTL.overview);
 
@@ -566,14 +576,47 @@ export async function getPackageOverview(
   if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
     if (!isFresh(entry, CACHE_FRESH_TTL.overview)) {
       runInBackground(cacheKey, async () => {
-        await refreshOverview(normalized, cacheKey);
+        await refreshOverview(normalized, cacheKey, "latest");
       });
     }
 
     return entry.data;
   }
 
-  return refreshOverview(normalized, cacheKey);
+  return refreshOverview(normalized, cacheKey, "latest");
+}
+
+const VERSION_PATTERN = /^[0-9a-z][0-9a-z._+-]*$/i;
+
+export function isValidVersion(version: string): boolean {
+  return VERSION_PATTERN.test(version);
+}
+
+export async function getPackageVersionOverview(
+  name: string,
+  version: string,
+): Promise<PackageOverview | null> {
+  const normalized = normalizePackageName(name);
+  const selector = version.trim();
+
+  if (!isValidPackageName(normalized) || !isValidVersion(selector)) {
+    return null;
+  }
+
+  const cacheKey = versionOverviewCacheKey(normalized, selector);
+  const entry = await cacheGetEntry<PackageOverview>(cacheKey);
+
+  if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
+    if (!isFresh(entry, CACHE_FRESH_TTL.overview)) {
+      runInBackground(cacheKey, async () => {
+        await refreshOverview(normalized, cacheKey, selector);
+      });
+    }
+
+    return entry.data;
+  }
+
+  return refreshOverview(normalized, cacheKey, selector);
 }
 
 async function refreshPackage(

@@ -12,11 +12,18 @@ const MANAGERS = [
 
 type ManagerId = (typeof MANAGERS)[number]["id"];
 
-export function InstallBlock({ packageName }: { packageName: string }) {
+export function InstallBlock({
+  packageName,
+  version,
+}: {
+  packageName: string;
+  version?: string;
+}) {
   const [manager, setManager] = useState<ManagerId>("npm");
   const [copied, setCopied] = useState(false);
   const selected = MANAGERS.find((entry) => entry.id === manager) ?? MANAGERS[0];
-  const command = selected.build(packageName);
+  const target = version ? `${packageName}@${version}` : packageName;
+  const command = selected.build(target);
 
   async function handleCopy() {
     try {
