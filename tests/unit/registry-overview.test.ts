@@ -34,6 +34,8 @@ import {
 import {
   RegistryError,
   getPackageOverview,
+  getPackageVersionOverview,
+  isValidVersion,
 } from "../../app/lib/registry";
 import type { PackageOverview } from "../../app/lib/types";
 
@@ -238,5 +240,57 @@ describe("getPackageOverview", () => {
     await expect(getPackageOverview("react")).rejects.toBeInstanceOf(
       RegistryError,
     );
+  });
+});
+
+describe("isValidVersion", () => {
+  it("accepts releases, prereleases and dist-tags", () => {
+    expect(isValidVersion("1.2.3")).toBe(true);
+    expect(isValidVersion("1.0.0-beta.1")).toBe(true);
+    expect(isValidVersion("latest")).toBe(true);
+  });
+
+  it("rejects paths and empty values", () => {
+    expect(isValidVersion("")).toBe(false);
+    expect(isValidVersion("1.0.0/extra")).toBe(false);
+    expect(isValidVersion("1.0.0 beta")).toBe(false);
+  });
+});
+
+describe("getPackageVersionOverview", () => {
+  it("builds the shell from the requested version manifest", async () => {
+    mockRegistry({ ...latestManifest, version: "19.3.0" });
+
+    const data = await getPackageVersionOverview("react", "19.3.0");
+
+    expect(data).toMatchObject({
+      name: "react",
+      latestVersion: "19.3.0",
+      weeklyDownloads: 2800,
+    });
+
+    const urls = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(urls).toContain("https://registry.npmjs.org/react/19.3.0");
+    expect(cacheSet).toHaveBeenCalledWith(
+      "v1:overview:react@19.3.0",
+      data,
+      CACHE_HARD_TTL.overview,
+    );
+  });
+
+  it("returns null for a missing version and clears stale data", async () => {
+    mockRegistry(null);
+
+    await expect(
+      getPackageVersionOverview("react", "99.0.0"),
+    ).resolves.toBeNull();
+    expect(cacheDelete).toHaveBeenCalledWith("v1:overview:react@99.0.0");
+  });
+
+  it("rejects an invalid version without fetching", async () => {
+    await expect(
+      getPackageVersionOverview("react", "1.0.0/extra"),
+    ).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
