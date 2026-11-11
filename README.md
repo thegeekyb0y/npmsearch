@@ -25,7 +25,7 @@ This repository uses **pnpm only**. Do not commit a second lockfile.
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm test` | Vitest unit tests |
-| `pnpm test:e2e` | Playwright smoke, responsive and axe tests (run `pnpm exec playwright install chromium` once) |
+| `pnpm test:e2e` | Playwright smoke, responsive, keyboard and axe tests (run `pnpm exec playwright install chromium` once) |
 
 ## Environment
 
@@ -51,10 +51,18 @@ Never commit `.env`. Missing `GITHUB_TOKEN` must never fail a build or a page re
 
 Server Components are the default. `"use client"` is reserved for interactive leaves.
 
+## Keyboard
+
+- `/` focuses the global search.
+- `Ctrl/Cmd+K` opens the command palette.
+- `ArrowDown` from the search input moves into the results.
+- `ArrowUp`/`ArrowDown` navigate, `Home`/`End` jump, `Enter` opens a package.
+- `Escape` closes the palette or returns focus to the search input.
+
 ## Design rules
 
 Hairlines over cards, monospace for identifiers and numbers, one accent color, no shadows or gradients. Every async view has a skeleton with zero layout shift. Layouts are verified at 360px, 768px and 1280px.
 
 ## Status
 
-Phases 0–4 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, instant debounced search, stale-while-revalidate caching, and virtualized infinite scroll. Phase 5 (keyboard layer and command palette) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.
+Phases 0–5 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, instant debounced search, stale-while-revalidate caching, virtualized infinite scroll, and the keyboard layer with command palette. Phase 6 (README pipeline) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

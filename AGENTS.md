@@ -22,8 +22,10 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/components/ui.tsx` — `AppShell`, `PageContainer`, `SectionTitle`, `VersionBadge`, `ExactBadge`, `ExternalLink`, `StatusPanel`, `CopyButton`. Reuse before inventing.
 - `app/components/motion-provider.tsx` — `MotionConfig reducedMotion="user"`.
 - `app/components/site-header.tsx` + `search-box.tsx` — server shell and debounced client search island.
-- `app/components/search-results.tsx` + `app/lib/search-events.ts` — client results, aborting fetches, 60s query cache, window virtualization.
+- `app/components/search-results.tsx` + `app/lib/search-events.ts` — client results, aborting fetches, 60s query cache, window virtualization, roving keyboard focus.
 - `app/lib/search-pagination.ts` — page offsets, dedupe/merge, 1,000-result cap.
+- `app/components/global-shortcuts.tsx` + `command-palette.tsx` — `/`, `Ctrl/Cmd+K`, arrows, Enter, Escape; native dialog palette.
+- `app/lib/keyboard.ts`, `keyboard-events.ts`, `recent-searches.ts`, `popular.ts` — shortcut guards and palette data.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).
@@ -49,7 +51,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 2. **Instant search.** 100ms leading+trailing debounce, `AbortController`, URL sync, client query cache. *(done)*
 3. **SWR cache.** Upstash `{ data, cachedAt }`, fresh/hard TTLs, stale served immediately, background refresh with `after()`, one in-flight refresh per key. *(done)*
 4. **Infinite scroll.** Window-virtualized results, `from=` pagination, dedupe, sentinel + load-more fallback, 1,000-result cap. *(done)*
-5. **Keyboard layer.** `/` focuses search, arrow-key navigation, Enter opens, command palette.
+5. **Keyboard layer.** `/`, `Ctrl/Cmd+K` native-dialog palette, ArrowUp/Down/Home/End through virtualized results, Enter opens, Escape returns to search. *(done)*
 6. **README.** `rehype-raw` + `rehype-sanitize`; rewrite relative image/link URLs to the repository raw base.
 7. **Analytics.** 30-day download trend, install size, dependency list with outdated flags, ESM/CJS + types badges.
 8. **Short routes.** `/<pkg>` and `/<pkg>@<version>`.
