@@ -54,8 +54,8 @@ describe("formatDate", () => {
 
 describe("formatRangeLabel", () => {
   it("falls back when either bound is missing", () => {
-    expect(formatRangeLabel(undefined, undefined)).toBe("Last 7 days");
-    expect(formatRangeLabel("2026-11-03", undefined)).toBe("Last 7 days");
+    expect(formatRangeLabel(undefined, undefined)).toBe("Last 30 days");
+    expect(formatRangeLabel("2026-11-03", undefined)).toBe("Last 30 days");
   });
 
   it("joins both bounds", () => {

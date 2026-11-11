@@ -43,6 +43,33 @@ export type LatestVersionInfo = {
   types?: string;
   main?: string;
   module?: string;
+  exports?: unknown;
+};
+
+export type ModuleFormat = {
+  esm: boolean;
+  cjs: boolean;
+  types: boolean;
+};
+
+export type InstallSize = {
+  bytes: number;
+  packages: number;
+  truncated: boolean;
+};
+
+export type DependencyStatus = {
+  name: string;
+  range: string;
+  latest?: string;
+  outdated: boolean;
+};
+
+export type PackageAnalytics = {
+  installSize?: InstallSize;
+  dependencies: DependencyStatus[];
+  outdatedCount: number;
+  moduleFormats: ModuleFormat;
 };
 
 export type GithubStats = {
@@ -66,6 +93,7 @@ export type PackageDetail = {
   latestVersionInfo?: LatestVersionInfo;
   recentVersions: RecentVersion[];
   weeklyDownloads?: number;
+  monthlyDownloads?: number;
   downloadTrend: DownloadPoint[];
   downloadRange?: { start?: string; end?: string };
   publishedAt?: string;

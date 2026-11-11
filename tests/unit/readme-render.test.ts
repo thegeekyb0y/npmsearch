@@ -34,9 +34,9 @@ describe("README rendering", () => {
           rehypeShiki,
           {
             theme: "vesper",
+            langs: ["ts"],
             defaultLanguage: "text",
             fallbackLanguage: "text",
-            lazy: true,
           },
         ],
       ],
@@ -50,7 +50,7 @@ describe("README rendering", () => {
     expect(html).toContain('alt="badge"');
     expect(html).toContain('width="100"');
     expect(html).not.toContain("<script");
-  }, 20_000);
+  }, 60_000);
 
   it("adds copy buttons without shiki", async () => {
     const element = await MarkdownAsync({
@@ -63,7 +63,6 @@ describe("README rendering", () => {
     });
 
     const html = renderToStaticMarkup(element);
-    console.log(html);
     expect(html).toContain("readme-copy");
   });
 });

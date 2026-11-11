@@ -22,9 +22,11 @@ function buildPath(points: SparklinePoint[], width: number, height: number) {
 
 export function DownloadSparkline({
   points,
+  label = "Download trend",
   className = "",
 }: {
   points: SparklinePoint[];
+  label?: string;
   className?: string;
 }) {
   const width = 220;
@@ -36,7 +38,7 @@ export function DownloadSparkline({
       viewBox={`0 0 ${width} ${height}`}
       className={className}
       role="img"
-      aria-label="Weekly download trend"
+      aria-label={label}
     >
       <defs>
         <linearGradient id="sparkline-fill" x1="0" x2="0" y1="0" y2="1">

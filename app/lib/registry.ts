@@ -234,6 +234,7 @@ const versionSchema = z.object({
   type: z.string().nullish(),
   main: z.string().nullish(),
   module: z.string().nullish(),
+  exports: z.unknown().nullish(),
   types: z.string().nullish(),
   typings: z.string().nullish(),
 });
@@ -345,6 +346,7 @@ function buildLatestVersionInfo(
     types: data.types ?? data.typings ?? undefined,
     main: data.main ?? undefined,
     module: data.module ?? undefined,
+    exports: data.exports ?? undefined,
   };
 }
 
@@ -400,7 +402,7 @@ async function fetchDownloads(
 ): Promise<z.infer<typeof downloadsRangeSchema> | null> {
   try {
     const response = await fetch(
-      `${DOWNLOADS_BASE}/downloads/range/last-week/${encodeURIComponent(name)}`,
+      `${DOWNLOADS_BASE}/downloads/range/last-month/${encodeURIComponent(name)}`,
       {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -441,8 +443,11 @@ async function refreshPackage(
   );
   const downloadTrend = buildDownloadTrend(downloads);
   const weeklyDownloads =
-    downloadTrend.reduce((sum, entry) => sum + entry.downloads, 0) ||
-    undefined;
+    downloadTrend
+      .slice(-7)
+      .reduce((sum, entry) => sum + entry.downloads, 0) || undefined;
+  const monthlyDownloads =
+    downloadTrend.reduce((sum, entry) => sum + entry.downloads, 0) || undefined;
   const repository = normalizeRepository(packument.repository);
   const github = await getGithubStats(repository?.url);
 
@@ -471,6 +476,7 @@ async function refreshPackage(
       packument["dist-tags"],
     ),
     weeklyDownloads,
+    monthlyDownloads,
     downloadTrend,
     downloadRange: downloads
       ? { start: downloads.start ?? undefined, end: downloads.end ?? undefined }
