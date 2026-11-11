@@ -33,8 +33,8 @@ Copy `.env.example` to `.env` and fill in the values:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `UPSTASH_REDIS_REST_URL` | yes | Shared response cache |
-| `UPSTASH_REDIS_REST_TOKEN` | yes | Shared response cache |
+| `UPSTASH_REDIS_REST_URL` | production | Shared response cache; blank runs uncached locally |
+| `UPSTASH_REDIS_REST_TOKEN` | production | Shared response cache; blank runs uncached locally |
 | `NEXT_PUBLIC_BASE_URL` | no | Fallback origin for local tooling |
 | `GITHUB_TOKEN` | no | Stars/forks/issues on package pages; the rail hides when absent |
 
@@ -46,7 +46,7 @@ Never commit `.env`. Missing `GITHUB_TOKEN` must never fail a build or a page re
 - `app/components/ui.tsx` — shared primitives; `app/components/*` — interactive islands.
 - `app/search/page.tsx` — search route.
 - `app/package/[name]/page.tsx` — package route and README.
-- `app/api/*` — thin HTTP adapters for client-side search.
+- `app/api/search/route.ts` — validated HTTP adapter for client-side instant search.
 - `app/globals.css` — the only source of design tokens.
 
 Server Components are the default. `"use client"` is reserved for interactive leaves.
@@ -57,4 +57,4 @@ Hairlines over cards, monospace for identifiers and numbers, one accent color, n
 
 ## Status
 
-Phase 0 (foundation and design system) is complete: stable 56px shell, hairline primitives, monospace package page, unit/e2e/CI coverage. Phase 1 (registry migration) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.
+Phase 0 (foundation and design system) and phase 1 (registry migration) are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, and full error states. Phase 2 (instant search) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

@@ -46,8 +46,9 @@ describe("formatDate", () => {
     expect(formatDate("2026-11-10T12:00:00Z")).toBe("Nov 10, 2026");
   });
 
-  it("returns Unknown when missing", () => {
+  it("returns Unknown when missing or invalid", () => {
     expect(formatDate(undefined)).toBe("Unknown");
+    expect(formatDate("not-a-date")).toBe("Unknown");
   });
 });
 

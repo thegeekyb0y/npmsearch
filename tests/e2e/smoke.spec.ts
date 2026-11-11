@@ -11,6 +11,8 @@ test.describe("smoke", () => {
     await page.goto("/search?q=react", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 45_000 });
     await expect(page.locator("body")).not.toContainText("Internal Server Error");
+    await expect(page.locator("body")).toContainText("packages for");
+    await expect(page.locator("body")).toContainText("/ wk");
   });
 
   test("package route renders a package or a readable not-found state", async ({ page }) => {

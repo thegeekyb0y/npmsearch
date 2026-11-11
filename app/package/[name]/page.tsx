@@ -9,6 +9,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import { notFound } from "next/navigation";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -30,50 +31,9 @@ import {
   formatCompactNumber,
   formatDate,
   formatRangeLabel,
-  normalizeRepositoryUrl,
 } from "@/app/lib/format";
-import { getBaseUrl } from "@/app/lib/get-base-url";
+import { getPackage } from "@/app/lib/registry";
 import type { MetaItem, TabItem } from "@/app/lib/types";
-
-type Maintainer = { name: string; email?: string };
-type DownloadPoint = { day?: string; downloads: number };
-type LatestVersionInfo = {
-  license?: string;
-  dependencies?: Record<string, string>;
-  dist?: { unpackedSize?: number };
-  engines?: { node?: string };
-  keywords?: string[];
-};
-type RecentVersion = {
-  version: string;
-  publishedAt: string;
-  tag?: string;
-};
-
-interface NpmPackagePageData {
-  name?: string;
-  description?: string;
-  readme?: string;
-  license?: string;
-  homepage?: string;
-  keywords?: string[];
-  maintainers?: Maintainer[];
-  repository?: { url?: string };
-  "dist-tags"?: { latest?: string };
-  latestVersionInfo?: LatestVersionInfo;
-  recentVersions?: RecentVersion[];
-  _meta?: {
-    weeklyDownloads?: number;
-    stars?: number;
-    forks?: number;
-    issues?: number;
-    dependents?: number;
-    score?: number;
-    downloadTrend?: DownloadPoint[];
-    downloadRange?: { start?: string; end?: string };
-    publishedAt?: string;
-  };
-}
 
 const markdownComponents: Components = {
   h1: ({ children }) => (
@@ -185,38 +145,40 @@ export default async function PackagePage({
 }) {
   const { name } = await params;
   const decodedName = decodeURIComponent(name);
-  const baseUrl = await getBaseUrl();
-  const res = await fetch(
-    `${baseUrl}/api/package/${encodeURIComponent(decodedName)}`,
-    { cache: "no-store" },
-  );
 
-  if (!res.ok) {
+  let data;
+
+  try {
+    data = await getPackage(decodedName);
+  } catch {
     return (
       <AppShell>
         <PageContainer className="py-6">
           <StatusPanel
             error
-            title="Package not found"
-            message={`We couldn't find "${decodedName}" in the registry.`}
+            title="Package is unavailable"
+            message="We couldn't load this package from the registry right now. Try again in a moment."
           />
         </PageContainer>
       </AppShell>
     );
   }
 
-  const data: NpmPackagePageData = await res.json();
-  const packageName = data.name ?? decodedName;
-  const latestVersion = data["dist-tags"]?.latest || "Unknown";
-  const repositoryUrl = normalizeRepositoryUrl(data.repository?.url);
+  if (!data) {
+    return notFound();
+  }
+
+  const packageName = data.name;
+  const latestVersion = data.latestVersion;
+  const repositoryUrl = data.repository?.url;
   const repositoryLabel = repositoryUrl
     ?.replace(/^https?:\/\/[^/]+\//, "")
     .replace(/\/$/, "");
-  const packageMeta = data._meta ?? {};
   const latestInfo = data.latestVersionInfo;
   const depsCount = Object.keys(latestInfo?.dependencies ?? {}).length;
   const nodeRange = latestInfo?.engines?.node;
   const license = latestInfo?.license ?? data.license ?? "Unknown";
+  const github = data.github;
 
   const metaItems: MetaItem[] = [
     { label: "license", value: license },
@@ -227,7 +189,7 @@ export default async function PackagePage({
       hint: "Unpacked package size. Install size includes dependencies.",
     },
     { label: "node", value: nodeRange ?? "any" },
-    { label: "published", value: formatDate(packageMeta.publishedAt) },
+    { label: "published", value: formatDate(data.publishedAt) },
   ];
 
   const tabs: TabItem[] = [
@@ -274,24 +236,24 @@ export default async function PackagePage({
                       </span>
                     </a>
                   ) : null}
-                  {typeof packageMeta.stars === "number" ? (
+                  {typeof github?.stars === "number" ? (
                     <span className="inline-flex items-center gap-1.5">
                       <Star
                         aria-hidden="true"
                         className="h-3.5 w-3.5 text-text-muted"
                         strokeWidth={1.8}
                       />
-                      {formatCompactNumber(packageMeta.stars)}
+                      {formatCompactNumber(github?.stars)}
                     </span>
                   ) : null}
-                  {typeof packageMeta.forks === "number" ? (
+                  {typeof github?.forks === "number" ? (
                     <span className="inline-flex items-center gap-1.5">
                       <GitFork
                         aria-hidden="true"
                         className="h-3.5 w-3.5 text-text-muted"
                         strokeWidth={1.8}
                       />
-                      {formatCompactNumber(packageMeta.forks)}
+                      {formatCompactNumber(github?.forks)}
                     </span>
                   ) : null}
                   {data.homepage ? (
@@ -309,14 +271,14 @@ export default async function PackagePage({
                       homepage
                     </a>
                   ) : null}
-                  {typeof packageMeta.issues === "number" ? (
+                  {typeof github?.issues === "number" ? (
                     <span className="inline-flex items-center gap-1.5">
                       <CircleAlert
                         aria-hidden="true"
                         className="h-3.5 w-3.5 text-text-muted"
                         strokeWidth={1.8}
                       />
-                      {formatCompactNumber(packageMeta.issues)} issues
+                      {formatCompactNumber(github?.issues)} issues
                     </span>
                   ) : null}
                   <a
@@ -368,6 +330,12 @@ export default async function PackagePage({
                   </span>
                 </div>
 
+                {data.readmeTruncated ? (
+                  <p className="mb-4 text-[11px] text-text-secondary">
+                    README truncated to 256 KB.
+                  </p>
+                ) : null}
+
                 <div className="min-w-0 overflow-hidden">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {data.readme?.trim() || "No README available."}
@@ -385,17 +353,17 @@ export default async function PackagePage({
             >
               <p className="m-0 font-mono text-[11px] text-text-secondary">
                 {formatRangeLabel(
-                  packageMeta.downloadRange?.start,
-                  packageMeta.downloadRange?.end,
+                  data.downloadRange?.start,
+                  data.downloadRange?.end,
                 )}
               </p>
               <p className="mt-2 mb-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
-                {typeof packageMeta.weeklyDownloads === "number"
-                  ? packageMeta.weeklyDownloads.toLocaleString("en-US")
+                {typeof data.weeklyDownloads === "number"
+                  ? data.weeklyDownloads.toLocaleString("en-US")
                   : "Unknown"}
               </p>
               <DownloadSparkline
-                points={packageMeta.downloadTrend ?? []}
+                points={data.downloadTrend ?? []}
                 className="mt-3 h-14 w-full text-brand"
               />
             </RailSection>

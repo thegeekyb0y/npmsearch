@@ -1,43 +1,62 @@
-import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/app/lib/rate-limit";
+import { searchPackages } from "@/app/lib/registry";
+import { parseSearchParams } from "@/app/lib/search-params";
 
-const redis = Redis.fromEnv();
+const SEARCH_CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+};
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store",
+};
+
+function getClientIdentifier(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  return (
+    forwarded?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "anonymous"
+  );
+}
 
 export async function GET(req: NextRequest) {
-  const query = req.nextUrl.searchParams.get("q");
+  const parsed = parseSearchParams(req.nextUrl.searchParams);
 
-  if (!query) {
-    return NextResponse.json({ error: "Query is required" }, { status: 400 });
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.message },
+      { status: 400, headers: NO_STORE_HEADERS },
+    );
   }
 
-  const cacheKey = `search:${query}`;
-  try {
-    const cachedData = await redis.get(cacheKey);
+  const rateLimit = await checkRateLimit(getClientIdentifier(req));
 
-    if (cachedData) {
-      return NextResponse.json(
-        typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
-      );
-    }
-
-    const newData = await fetch(`https://api.npms.io/v2/search?q=${query}`, {
-      headers: {
-        Accept: "application/json",
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: {
+          ...NO_STORE_HEADERS,
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
       },
+    );
+  }
+
+  try {
+    const data = await searchPackages(parsed.value.q, {
+      from: parsed.value.from,
+      size: parsed.value.size,
     });
 
-    if (!newData.ok) throw new Error("NPMS API error");
-
-    const data = await newData.json();
-
-    await redis.set(cacheKey, JSON.stringify(data), { ex: 300 });
-
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: SEARCH_CACHE_HEADERS });
   } catch (error) {
-    console.error("Search API Error: ", error);
+    console.error("Search API error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
+      { error: "Registry unavailable" },
+      { status: 502, headers: NO_STORE_HEADERS },
     );
   }
 }
