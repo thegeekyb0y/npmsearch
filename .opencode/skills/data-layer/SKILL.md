@@ -11,9 +11,12 @@ All registry access lives in `app/lib/*` (start with `app/lib/registry.ts`). Pag
 | Need | URL |
 | --- | --- |
 | Search | `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(q)}&size=20&from=0` |
-| Package doc | `https://registry.npmjs.org/${encodeURIComponent(name)}` |
+| Package shell | `https://registry.npmjs.org/${encodeURIComponent(name)}/latest` (small; critical path) |
+| Package doc | `https://registry.npmjs.org/${encodeURIComponent(name)}` (full; README, versions, maintainers) |
 | Weekly downloads | `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}` |
 | 30-day trend | `https://api.npmjs.org/downloads/range/last-month/${encodeURIComponent(name)}` |
+
+- The package page shell renders from `/latest`; README, versions, maintainers and GitHub stats stream from the full packument so huge packuments never block first paint.
 
 - Search objects already contain `downloads.weekly` — use it. **Never** fetch downloads per result.
 - `downloads.weekly` may be missing: render "Downloads unavailable", don't guess.
@@ -43,6 +46,8 @@ Format: **`${version}:${kind}:${normalized-input}`**
 const CACHE_VERSION = "v1";
 const searchKey = `${CACHE_VERSION}:search:${normalizeQuery(q)}`;
 const packageKey = `${CACHE_VERSION}:package:${normalizePackageName(name)}`;
+const overviewKey = `${CACHE_VERSION}:overview:${normalizePackageName(name)}`;
+const analyticsKey = `${CACHE_VERSION}:analytics:${normalizePackageName(name)}`;
 const downloadsKey = `${CACHE_VERSION}:downloads:${normalizePackageName(name)}`;
 ```
 
@@ -55,6 +60,8 @@ const downloadsKey = `${CACHE_VERSION}:downloads:${normalizePackageName(name)}`;
 | --- | --- | --- |
 | search | 60s | 1h |
 | package | 5m | 24h |
+| overview | 5m | 24h |
+| analytics | 1h | 24h |
 | downloads | 5m | 24h |
 | github | 24h | 7d |
 
