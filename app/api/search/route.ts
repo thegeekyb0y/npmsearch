@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRedis } from "@/app/lib/redis";
+import { CACHE_TTL, cacheGet, cacheSet, searchCacheKey } from "@/app/lib/cache";
 
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get("q");
@@ -8,21 +8,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
 
-  const cacheKey = `search:${query}`;
-  const redis = getRedis();
+  const cacheKey = searchCacheKey(query);
+  const cached = await cacheGet<unknown>(cacheKey);
 
-  if (redis) {
-    try {
-      const cachedData = await redis.get(cacheKey);
-
-      if (cachedData) {
-        return NextResponse.json(
-          typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
-        );
-      }
-    } catch (error) {
-      console.error("Search cache read error:", error);
-    }
+  if (cached !== null) {
+    return NextResponse.json(cached);
   }
 
   try {
@@ -34,15 +24,9 @@ export async function GET(req: NextRequest) {
 
     if (!newData.ok) throw new Error("NPMS API error");
 
-    const data = await newData.json();
+    const data: unknown = await newData.json();
 
-    if (redis) {
-      try {
-        await redis.set(cacheKey, JSON.stringify(data), { ex: 300 });
-      } catch (error) {
-        console.error("Search cache write error:", error);
-      }
-    }
+    await cacheSet(cacheKey, data, CACHE_TTL.search);
 
     return NextResponse.json(data);
   } catch (error) {

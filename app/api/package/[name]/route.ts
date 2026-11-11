@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRedis } from "@/app/lib/redis";
+import {
+  CACHE_TTL,
+  cacheGet,
+  cacheSet,
+  packageCacheKey,
+} from "@/app/lib/cache";
 
 type RegistryVersionData = {
   license?: string;
@@ -155,20 +160,11 @@ export async function GET(
     );
   }
 
-  const cacheKey = `package:${name.toLowerCase()}`;
-  const redis = getRedis();
+  const cacheKey = packageCacheKey(name);
+  const cachedData = await cacheGet<unknown>(cacheKey);
 
-  if (redis) {
-    try {
-      const cachedData = await redis.get(cacheKey);
-      if (cachedData) {
-        return NextResponse.json(
-          typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
-        );
-      }
-    } catch (error) {
-      console.error("Package cache read error:", error);
-    }
+  if (cachedData !== null) {
+    return NextResponse.json(cachedData);
   }
 
   try {
@@ -198,13 +194,7 @@ export async function GET(
       npmsResponse && npmsResponse.ok ? await npmsResponse.json() : null;
     const data = buildCompactPackagePayload(registryData, downloadsData, npmsData);
 
-    if (redis) {
-      try {
-        await redis.set(cacheKey, JSON.stringify(data), { ex: 3600 });
-      } catch (error) {
-        console.error("Package cache write error:", error);
-      }
-    }
+    await cacheSet(cacheKey, data, CACHE_TTL.package);
 
     return NextResponse.json(data);
   } catch (error) {
