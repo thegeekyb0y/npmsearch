@@ -12,6 +12,7 @@ All registry access lives in `app/lib/*` (start with `app/lib/registry.ts`). Pag
 | --- | --- |
 | Search | `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(q)}&size=20&from=0` |
 | Package shell | `https://registry.npmjs.org/${encodeURIComponent(name)}/latest` (small; critical path) |
+| Pinned version | `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}` |
 | Package doc | `https://registry.npmjs.org/${encodeURIComponent(name)}` (full; README, versions, maintainers) |
 | Weekly downloads | `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}` |
 | 30-day trend | `https://api.npmjs.org/downloads/range/last-month/${encodeURIComponent(name)}` |
