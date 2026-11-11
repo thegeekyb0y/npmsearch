@@ -85,7 +85,7 @@ afterEach(() => {
 });
 
 describe("getPackage", () => {
-  it("maps a packument and weekly downloads", async () => {
+  it("maps a packument and 30-day downloads", async () => {
     mockRegistry();
 
     const data = await getPackage("React");
@@ -111,9 +111,11 @@ describe("getPackage", () => {
       "19.3.0",
     ]);
     expect(data?.recentVersions[0].tag).toBe("latest");
-    expect(data?.downloadTrend).toHaveLength(7);
+    expect(data?.downloadTrend).toHaveLength(30);
+    expect(data?.weeklyDownloads).toBe(2800);
+    expect(data?.monthlyDownloads).toBe(3950);
     expect(data?.downloadRange).toEqual({
-      start: "2026-11-03",
+      start: "2026-10-11",
       end: "2026-11-09",
     });
     expect(data?.maintainers[1].email).toBeUndefined();
@@ -245,6 +247,7 @@ describe("getPackage", () => {
     const data = await getPackage("react");
 
     expect(data?.weeklyDownloads).toBeUndefined();
+    expect(data?.monthlyDownloads).toBeUndefined();
     expect(data?.downloadTrend).toEqual([]);
   });
 
