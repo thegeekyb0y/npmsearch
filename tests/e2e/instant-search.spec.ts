@@ -74,11 +74,28 @@ test("a burst of typing is debounced to a small number of requests", async ({
   ).toBeVisible();
 
   const input = page.getByRole("searchbox", { name: "Search npm packages" });
-  await input.pressSequentially("debounce", { delay: 20 });
-  await page.waitForTimeout(150);
+
+  // Dispatch the whole burst in one task so machine speed cannot turn each
+  // keystroke into its own leading edge.
+  await input.evaluate((element) => {
+    const target = element as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    const values = ["d", "de", "deb", "debo", "debou", "deboun", "debounc", "debounce"];
+
+    for (const value of values) {
+      setter?.call(target, value);
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+
+  await page.waitForTimeout(200);
 
   expect(requests.length).toBeGreaterThan(0);
   expect(requests.length).toBeLessThanOrEqual(3);
+  expect(requests.at(-1)).toBe("debounce");
 });
 
 test("repeating a recent query is served from the client cache", async ({
