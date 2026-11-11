@@ -1,7 +1,5 @@
-import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
-
-const redis = Redis.fromEnv();
+import { getRedis } from "@/app/lib/redis";
 
 type RegistryVersionData = {
   license?: string;
@@ -158,16 +156,19 @@ export async function GET(
   }
 
   const cacheKey = `package:${name.toLowerCase()}`;
+  const redis = getRedis();
 
-  try {
-    const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-      return NextResponse.json(
-        typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
-      );
+  if (redis) {
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        return NextResponse.json(
+          typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
+        );
+      }
+    } catch (error) {
+      console.error("Package cache read error:", error);
     }
-  } catch (error) {
-    console.error("Package cache read error:", error);
   }
 
   try {
@@ -197,10 +198,12 @@ export async function GET(
       npmsResponse && npmsResponse.ok ? await npmsResponse.json() : null;
     const data = buildCompactPackagePayload(registryData, downloadsData, npmsData);
 
-    try {
-      await redis.set(cacheKey, JSON.stringify(data), { ex: 3600 });
-    } catch (error) {
-      console.error("Package cache write error:", error);
+    if (redis) {
+      try {
+        await redis.set(cacheKey, JSON.stringify(data), { ex: 3600 });
+      } catch (error) {
+        console.error("Package cache write error:", error);
+      }
     }
 
     return NextResponse.json(data);

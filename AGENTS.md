@@ -24,7 +24,8 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/components/site-header.tsx` + `search-box.tsx` — server shell and client search island.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
-- APIs: `app/api/search/route.ts`, `app/api/package/[name]/route.ts`. Lib: `app/lib/get-base-url.ts`.
+- APIs: `app/api/search/route.ts`, `app/api/package/[name]/route.ts`.
+- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/format.ts`, `app/lib/get-base-url.ts` (legacy).
 
 ## Definition of done
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass.

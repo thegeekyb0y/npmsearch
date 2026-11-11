@@ -1,7 +1,5 @@
-import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
-
-const redis = Redis.fromEnv();
+import { getRedis } from "@/app/lib/redis";
 
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get("q");
@@ -11,15 +9,23 @@ export async function GET(req: NextRequest) {
   }
 
   const cacheKey = `search:${query}`;
-  try {
-    const cachedData = await redis.get(cacheKey);
+  const redis = getRedis();
 
-    if (cachedData) {
-      return NextResponse.json(
-        typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
-      );
+  if (redis) {
+    try {
+      const cachedData = await redis.get(cacheKey);
+
+      if (cachedData) {
+        return NextResponse.json(
+          typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData,
+        );
+      }
+    } catch (error) {
+      console.error("Search cache read error:", error);
     }
+  }
 
+  try {
     const newData = await fetch(`https://api.npms.io/v2/search?q=${query}`, {
       headers: {
         Accept: "application/json",
@@ -30,7 +36,13 @@ export async function GET(req: NextRequest) {
 
     const data = await newData.json();
 
-    await redis.set(cacheKey, JSON.stringify(data), { ex: 300 });
+    if (redis) {
+      try {
+        await redis.set(cacheKey, JSON.stringify(data), { ex: 300 });
+      } catch (error) {
+        console.error("Search cache write error:", error);
+      }
+    }
 
     return NextResponse.json(data);
   } catch (error) {

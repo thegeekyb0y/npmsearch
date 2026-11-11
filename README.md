@@ -33,8 +33,8 @@ Copy `.env.example` to `.env` and fill in the values:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `UPSTASH_REDIS_REST_URL` | yes | Shared response cache |
-| `UPSTASH_REDIS_REST_TOKEN` | yes | Shared response cache |
+| `UPSTASH_REDIS_REST_URL` | production | Shared response cache; blank runs uncached locally |
+| `UPSTASH_REDIS_REST_TOKEN` | production | Shared response cache; blank runs uncached locally |
 | `NEXT_PUBLIC_BASE_URL` | no | Fallback origin for local tooling |
 | `GITHUB_TOKEN` | no | Stars/forks/issues on package pages; the rail hides when absent |
 
