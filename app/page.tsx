@@ -35,44 +35,12 @@ export default function HomePage() {
           A faster, quieter interface for the npm ecosystem. No noise, no marketing
           pages — just package data, versions, and READMEs.
         </p>
-
-        <form
-          action="/search"
-          method="GET"
-          role="search"
-          className="mt-8 flex flex-col gap-2 sm:flex-row"
-        >
-          <label htmlFor="home-search" className="sr-only">
-            Search npm packages
-          </label>
-          <div className="relative min-w-0 flex-1">
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 left-4 flex items-center font-mono text-[14px] text-brand"
-            >
-              $
-            </span>
-            <input
-              id="home-search"
-              type="search"
-              name="q"
-              autoComplete="off"
-              spellCheck={false}
-              enterKeyHint="search"
-              placeholder="react, @scope/package, or a keyword"
-              className="min-h-12 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-3 pr-4 pl-10 text-[15px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand"
-            />
-          </div>
-          <button
-            type="submit"
-            className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-sm)] border border-brand bg-brand px-6 font-mono text-[13px] font-medium text-background transition-colors duration-150 ease-out hover:border-brand-hover hover:bg-brand-hover"
-          >
-            search
-          </button>
-        </form>
       </section>
 
-      <section aria-labelledby="popular-heading" className="mt-12 border-t border-border-subtle pt-5">
+      <section
+        aria-labelledby="popular-heading"
+        className="home-search-space mt-12 border-t border-border-subtle pt-5"
+      >
         <div className="flex flex-wrap items-baseline gap-x-6 gap-y-3">
           <h2
             id="popular-heading"

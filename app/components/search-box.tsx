@@ -26,6 +26,7 @@ export function SearchBox() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isHome = pathname === "/";
   const routeQuery = getRouteQuery(pathname, searchParams);
   const [query, setQuery] = useState(routeQuery);
   const [previousRouteQuery, setPreviousRouteQuery] = useState(routeQuery);
@@ -154,7 +155,11 @@ export function SearchBox() {
       method="GET"
       role="search"
       onSubmit={handleSubmit}
-      className="flex min-w-0 flex-1 items-center gap-2"
+      className={`flex min-w-0 flex-1 items-center gap-2 transition-transform duration-300 ease-out motion-reduce:transition-none lg:max-w-[560px] lg:pointer-events-auto lg:will-change-transform ${
+        isHome
+          ? "lg:translate-y-[calc(50dvh_-_24px)]"
+          : "lg:translate-y-0"
+      }`}
     >
       <div className="relative min-w-0 flex-1">
         <span
@@ -184,13 +189,17 @@ export function SearchBox() {
           enterKeyHint="search"
           aria-label="Search npm packages"
           placeholder="search packages…"
-          className="min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand"
+          className={`min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary transition-colors duration-150 ease-out placeholder:text-text-secondary hover:border-border-strong focus:border-brand ${
+            isHome ? "lg:min-h-12 lg:text-[15px]" : ""
+          }`}
         />
       </div>
       <button
         type="submit"
         aria-label="Search packages"
-        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary sm:px-3"
+        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary sm:px-3 ${
+          isHome ? "lg:min-h-12 lg:min-w-12" : ""
+        }`}
       >
         <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
         <span className="hidden sm:inline">search</span>
@@ -200,12 +209,19 @@ export function SearchBox() {
 }
 
 export function SearchBoxFallback() {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+
   return (
     <form
       action="/search"
       method="GET"
       role="search"
-      className="flex min-w-0 flex-1 items-center gap-2"
+      className={`flex min-w-0 flex-1 items-center gap-2 transition-transform duration-300 ease-out motion-reduce:transition-none lg:max-w-[560px] lg:pointer-events-auto lg:will-change-transform ${
+        isHome
+          ? "lg:translate-y-[calc(50dvh_-_24px)]"
+          : "lg:translate-y-0"
+      }`}
     >
       <div className="relative min-w-0 flex-1">
         <span
@@ -219,13 +235,17 @@ export function SearchBoxFallback() {
           name="q"
           aria-label="Search npm packages"
           placeholder="search packages…"
-          className="min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary placeholder:text-text-secondary focus:border-brand"
+          className={`min-h-11 w-full rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-3 pl-7 text-[13px] text-text-primary placeholder:text-text-secondary focus:border-brand ${
+            isHome ? "lg:min-h-12 lg:text-[15px]" : ""
+          }`}
         />
       </div>
       <button
         type="submit"
         aria-label="Search packages"
-        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary sm:px-3"
+        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary sm:px-3 ${
+          isHome ? "lg:min-h-12 lg:min-w-12" : ""
+        }`}
       >
         <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
         <span className="hidden sm:inline">search</span>
