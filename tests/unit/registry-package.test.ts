@@ -2,12 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import downloadsFixture from "../fixtures/registry/downloads.json";
 import packageFixture from "../fixtures/registry/package.json";
 
+const { backgroundTasks } = vi.hoisted(() => ({
+  backgroundTasks: [] as Array<() => Promise<void>>,
+}));
+
+vi.mock("../../app/lib/background", () => ({
+  runInBackground: (_key: string, task: () => Promise<void>) => {
+    backgroundTasks.push(task);
+  },
+}));
+
 vi.mock("../../app/lib/cache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../app/lib/cache")>();
   return {
     ...actual,
-    cacheGet: vi.fn(),
+    cacheGetEntry: vi.fn(),
     cacheSet: vi.fn(),
+    cacheDelete: vi.fn(),
   };
 });
 
@@ -15,7 +26,12 @@ vi.mock("../../app/lib/github", () => ({
   getGithubStats: vi.fn(async () => null),
 }));
 
-import { cacheGet, cacheSet } from "../../app/lib/cache";
+import {
+  CACHE_HARD_TTL,
+  cacheDelete,
+  cacheGetEntry,
+  cacheSet,
+} from "../../app/lib/cache";
 import { getGithubStats } from "../../app/lib/github";
 import {
   README_LIMIT,
@@ -56,9 +72,12 @@ function mockRegistry(
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
-  vi.mocked(cacheGet).mockResolvedValue(null);
+  backgroundTasks.length = 0;
+  vi.mocked(cacheGetEntry).mockResolvedValue(null);
   vi.mocked(cacheSet).mockResolvedValue(undefined);
   vi.mocked(cacheSet).mockClear();
+  vi.mocked(cacheDelete).mockResolvedValue(undefined);
+  vi.mocked(cacheDelete).mockClear();
 });
 
 afterEach(() => {
@@ -102,7 +121,7 @@ describe("getPackage", () => {
     expect(cacheSet).toHaveBeenCalledWith(
       "v1:package:react",
       data,
-      300,
+      CACHE_HARD_TTL.package,
     );
   });
 
@@ -115,11 +134,12 @@ describe("getPackage", () => {
     expect(urls.some((url) => url.includes("%40scope%2Fname"))).toBe(true);
   });
 
-  it("returns null for a missing package and does not cache it", async () => {
+  it("returns null for a missing package and clears any stale entry", async () => {
     mockRegistry({ status: 404 });
 
     await expect(getPackage("missing-package")).resolves.toBeNull();
     expect(cacheSet).not.toHaveBeenCalled();
+    expect(cacheDelete).toHaveBeenCalledWith("v1:package:missing-package");
   });
 
   it("returns null for an invalid package name without fetching", async () => {
@@ -127,7 +147,7 @@ describe("getPackage", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("returns a cached package without fetching", async () => {
+  it("returns a fresh cached package without fetching", async () => {
     const cached: PackageDetail = {
       name: "react",
       readmeTruncated: false,
@@ -137,10 +157,67 @@ describe("getPackage", () => {
       recentVersions: [],
       downloadTrend: [],
     };
-    vi.mocked(cacheGet).mockResolvedValue(cached);
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now(),
+    });
 
     await expect(getPackage("react")).resolves.toEqual(cached);
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(0);
+  });
+
+  it("serves a stale package and refreshes it in the background", async () => {
+    const cached: PackageDetail = {
+      name: "react",
+      readmeTruncated: false,
+      keywords: [],
+      maintainers: [],
+      latestVersion: "19.3.1",
+      recentVersions: [],
+      downloadTrend: [],
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - 301_000,
+    });
+    mockRegistry();
+
+    await expect(getPackage("react")).resolves.toEqual(cached);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(1);
+
+    await backgroundTasks[0]();
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(cacheSet).toHaveBeenCalledWith(
+      "v1:package:react",
+      expect.objectContaining({ name: "react" }),
+      CACHE_HARD_TTL.package,
+    );
+  });
+
+  it("treats a hard-expired package entry as a miss", async () => {
+    const stale: PackageDetail = {
+      name: "react",
+      readmeTruncated: false,
+      keywords: [],
+      maintainers: [],
+      latestVersion: "19.3.1",
+      recentVersions: [],
+      downloadTrend: [],
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: stale,
+      cachedAt: Date.now() - (CACHE_HARD_TTL.package + 1) * 1_000,
+    });
+    mockRegistry();
+
+    const data = await getPackage("react");
+
+    expect(data?.latestVersion).toBe("19.3.1");
+    expect(fetchMock).toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(0);
   });
 
   it("includes GitHub stats when they are available", async () => {
