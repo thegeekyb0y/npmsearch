@@ -28,6 +28,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/lib/keyboard.ts`, `keyboard-events.ts`, `recent-searches.ts`, `popular.ts` — shortcut guards and palette data.
 - `app/lib/readme.ts` + `readme-copy.tsx` — raw HTML sanitize, relative URL rewrite, Shiki, TOC, copy buttons.
 - `app/lib/analytics.ts` + `app/lib/semver.ts` — install-size crawl, dependency freshness, ESM/CJS/types detection.
+- `app/package/[name]` + `package-readme.tsx`, `package-analytics.tsx`, `package-history.tsx` — `/latest` shell with streamed README, analytics and history.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).

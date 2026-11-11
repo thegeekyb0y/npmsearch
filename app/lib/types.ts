@@ -36,7 +36,7 @@ export type RecentVersion = {
 export type LatestVersionInfo = {
   license?: string;
   dependencies: Record<string, string>;
-  dist?: { unpackedSize?: number };
+  dist?: { unpackedSize?: number; files?: number };
   engines?: { node?: string };
   keywords: string[];
   type?: string;
@@ -99,6 +99,11 @@ export type PackageDetail = {
   publishedAt?: string;
   github?: GithubStats;
 };
+
+export type PackageOverview = Omit<
+  PackageDetail,
+  "readme" | "readmeTruncated" | "recentVersions" | "publishedAt" | "github"
+>;
 
 export type MetaItem = {
   label: string;

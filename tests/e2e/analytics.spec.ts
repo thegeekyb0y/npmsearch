@@ -17,8 +17,12 @@ test("package analytics show downloads, install size and dependency health", asy
   ).toBeVisible();
 
   const meta = page.locator("dl").first();
-  await expect(meta).toContainText("install");
+  await expect(meta).toContainText("unpacked");
   await expect(meta).toContainText("deps");
+
+  const install = page.locator("#install-size");
+  await expect(install).toBeVisible({ timeout: 30_000 });
+  await expect(install).toContainText("Includes dependencies");
 
   const compatibility = page.locator("#compatibility");
   await expect(compatibility).toContainText("node");

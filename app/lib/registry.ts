@@ -8,6 +8,7 @@ import {
   cacheSet,
   isExpired,
   isFresh,
+  overviewCacheKey,
   packageCacheKey,
   searchCacheKey,
 } from "./cache";
@@ -17,6 +18,7 @@ import type {
   DownloadPoint,
   LatestVersionInfo,
   PackageDetail,
+  PackageOverview,
   PackageSummary,
   RecentVersion,
   SearchResults,
@@ -228,7 +230,12 @@ const licenseSchema = z
 const versionSchema = z.object({
   license: licenseSchema,
   dependencies: z.record(z.string(), z.string()).nullish(),
-  dist: z.object({ unpackedSize: z.number().nullish() }).nullish(),
+  dist: z
+    .object({
+      unpackedSize: z.number().nullish(),
+      fileCount: z.number().nullish(),
+    })
+    .nullish(),
   engines: z.object({ node: z.string().nullish() }).nullish(),
   keywords: z.array(z.string()).nullish(),
   type: z.string().nullish(),
@@ -274,6 +281,26 @@ const downloadsRangeSchema = z.object({
     )
     .nullish(),
 });
+
+const latestManifestSchema = versionSchema.extend({
+  name: z.string().min(1),
+  version: z.string().min(1),
+  description: z.string().nullish(),
+  homepage: z.string().nullish(),
+  maintainers: z
+    .array(
+      z.object({
+        name: z.string(),
+        email: z.string().nullish(),
+      }),
+    )
+    .nullish(),
+  repository: z
+    .union([z.string(), z.object({ url: z.string().nullish() })])
+    .nullish(),
+});
+
+type LatestManifest = z.infer<typeof latestManifestSchema>;
 
 type Packument = z.infer<typeof packumentSchema>;
 
@@ -336,7 +363,10 @@ function buildLatestVersionInfo(
     license: normalizeLicense(data.license),
     dependencies: data.dependencies ?? {},
     dist: data.dist
-      ? { unpackedSize: data.dist.unpackedSize ?? undefined }
+      ? {
+          unpackedSize: data.dist.unpackedSize ?? undefined,
+          files: data.dist.fileCount ?? undefined,
+        }
       : undefined,
     engines: data.engines
       ? { node: data.engines.node ?? undefined }
@@ -419,6 +449,133 @@ async function fetchDownloads(
   }
 }
 
+async function fetchLatestManifest(
+  name: string,
+): Promise<LatestManifest | null> {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${REGISTRY_BASE}/${encodeURIComponent(name)}/latest`,
+      {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        cache: "no-store",
+      },
+    );
+  } catch {
+    throw new RegistryError("Unable to reach the npm registry");
+  }
+
+  if (response.status === 404) return null;
+
+  if (!response.ok) {
+    throw new RegistryError(
+      `Registry package request failed with status ${response.status}`,
+      response.status,
+    );
+  }
+
+  let json: unknown;
+
+  try {
+    json = await response.json();
+  } catch {
+    throw new RegistryError("Registry returned invalid JSON");
+  }
+
+  const parsed = latestManifestSchema.safeParse(json);
+
+  if (!parsed.success) {
+    throw new RegistryError("Unexpected package response from the registry");
+  }
+
+  return parsed.data;
+}
+
+function buildDownloadSummary(
+  downloads: z.infer<typeof downloadsRangeSchema> | null,
+) {
+  const downloadTrend = buildDownloadTrend(downloads);
+
+  return {
+    downloadTrend,
+    weeklyDownloads:
+      downloadTrend
+        .slice(-7)
+        .reduce((sum, entry) => sum + entry.downloads, 0) || undefined,
+    monthlyDownloads:
+      downloadTrend.reduce((sum, entry) => sum + entry.downloads, 0) ||
+      undefined,
+    downloadRange: downloads
+      ? {
+          start: downloads.start ?? undefined,
+          end: downloads.end ?? undefined,
+        }
+      : undefined,
+  };
+}
+
+async function refreshOverview(
+  normalized: string,
+  cacheKey: string,
+): Promise<PackageOverview | null> {
+  const [manifest, downloads] = await Promise.all([
+    fetchLatestManifest(normalized),
+    fetchDownloads(normalized),
+  ]);
+
+  if (!manifest) {
+    await cacheDelete(cacheKey);
+    return null;
+  }
+
+  const data: PackageOverview = {
+    name: manifest.name,
+    description: manifest.description?.trim() || undefined,
+    license: normalizeLicense(manifest.license),
+    homepage: manifest.homepage ?? undefined,
+    keywords: manifest.keywords ?? [],
+    maintainers: (manifest.maintainers ?? []).map((maintainer) => ({
+      name: maintainer.name,
+      email: maintainer.email ?? undefined,
+    })),
+    repository: normalizeRepository(manifest.repository),
+    latestVersion: manifest.version,
+    latestVersionInfo: buildLatestVersionInfo(manifest),
+    ...buildDownloadSummary(downloads),
+  };
+
+  await cacheSet(cacheKey, data, CACHE_HARD_TTL.overview);
+
+  return data;
+}
+
+export async function getPackageOverview(
+  name: string,
+): Promise<PackageOverview | null> {
+  const normalized = normalizePackageName(name);
+
+  if (!isValidPackageName(normalized)) {
+    return null;
+  }
+
+  const cacheKey = overviewCacheKey(normalized);
+  const entry = await cacheGetEntry<PackageOverview>(cacheKey);
+
+  if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
+    if (!isFresh(entry, CACHE_FRESH_TTL.overview)) {
+      runInBackground(cacheKey, async () => {
+        await refreshOverview(normalized, cacheKey);
+      });
+    }
+
+    return entry.data;
+  }
+
+  return refreshOverview(normalized, cacheKey);
+}
+
 async function refreshPackage(
   normalized: string,
   cacheKey: string,
@@ -441,13 +598,6 @@ async function refreshPackage(
   const readmeTruncated = Boolean(
     rawReadme && rawReadme.length > README_LIMIT,
   );
-  const downloadTrend = buildDownloadTrend(downloads);
-  const weeklyDownloads =
-    downloadTrend
-      .slice(-7)
-      .reduce((sum, entry) => sum + entry.downloads, 0) || undefined;
-  const monthlyDownloads =
-    downloadTrend.reduce((sum, entry) => sum + entry.downloads, 0) || undefined;
   const repository = normalizeRepository(packument.repository);
   const github = await getGithubStats(repository?.url);
 
@@ -475,12 +625,7 @@ async function refreshPackage(
       packument.time,
       packument["dist-tags"],
     ),
-    weeklyDownloads,
-    monthlyDownloads,
-    downloadTrend,
-    downloadRange: downloads
-      ? { start: downloads.start ?? undefined, end: downloads.end ?? undefined }
-      : undefined,
+    ...buildDownloadSummary(downloads),
     publishedAt: latestVersion
       ? packument.time?.[latestVersion]
       : undefined,
