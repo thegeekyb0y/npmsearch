@@ -63,6 +63,13 @@ export function overviewCacheKey(name: string): string {
   return `${CACHE_VERSION}:overview:${normalizePackageInput(name)}`;
 }
 
+export function versionOverviewCacheKey(
+  name: string,
+  version: string,
+): string {
+  return `${CACHE_VERSION}:overview:${normalizePackageInput(name)}@${version.toLowerCase()}`;
+}
+
 export function downloadsCacheKey(name: string): string {
   return `${CACHE_VERSION}:downloads:${normalizePackageInput(name)}`;
 }
