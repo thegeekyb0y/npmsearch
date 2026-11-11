@@ -43,7 +43,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 
 ## Roadmap — one PR-sized commit per phase
 0. **Foundation.** Hairline tokens and primitives, stable 56px command bar, server shell with a client search island, `motion/react` only, baseline unit/e2e/CI, README and `.env.example`. *(done)*
-1. **Registry migration.** Replace `api.npms.io` with `registry.npmjs.org/-/v1/search`, use `downloads.weekly` from each result, delete per-result download fetches. Move logic to `app/lib/registry.ts`. Fixes: unencoded `q` in `app/api/search/route.ts`; N+1 downloads in `app/search/page.tsx`; remove `framer-motion`/`react-icons` duplicates; replace boilerplate `README.md`.
+1. **Registry migration.** `registry.npmjs.org/-/v1/search`, `downloads.weekly`, direct lib access, GitHub stats, validated routes, error states. *(done)*
 2. **Instant search.** Client input with 100ms leading+trailing debounce, `AbortController`, `router.replace` URL sync.
 3. **SWR cache.** Upstash `{ data, cachedAt }`: serve stale immediately, refresh in background with `after()`.
 4. **Infinite scroll.** Virtualized list using registry `from=` pagination, plus search skeletons.
