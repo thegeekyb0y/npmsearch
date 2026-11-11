@@ -1,0 +1,44 @@
+{
+  "name": "react",
+  "description": "React is a JavaScript library for building user interfaces.",
+  "readme": "# React\n\nA JavaScript library for building user interfaces.",
+  "license": "MIT",
+  "homepage": "https://react.dev",
+  "keywords": ["react", "ui"],
+  "maintainers": [
+    { "name": "fb", "email": "opensource+npm@fb.com" },
+    { "name": "react-bot" }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/facebook/react.git"
+  },
+  "time": {
+    "created": "2011-10-26T17:46:21.000Z",
+    "modified": "2026-10-14T12:00:00.000Z",
+    "19.3.0": "2026-09-20T12:00:00.000Z",
+    "19.3.1": "2026-10-14T12:00:00.000Z"
+  },
+  "dist-tags": {
+    "latest": "19.3.1"
+  },
+  "versions": {
+    "19.3.0": {
+      "license": "MIT",
+      "dependencies": {},
+      "dist": { "unpackedSize": 170000 },
+      "engines": { "node": ">=0.10.0" },
+      "keywords": ["react"]
+    },
+    "19.3.1": {
+      "license": "MIT",
+      "dependencies": { "scheduler": "^0.27.0" },
+      "dist": { "unpackedSize": 178700 },
+      "engines": { "node": ">=0.10.0" },
+      "keywords": ["react", "ui"],
+      "type": "module",
+      "main": "index.js",
+      "types": "index.d.ts"
+    }
+  }
+}
