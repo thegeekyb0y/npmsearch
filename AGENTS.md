@@ -12,7 +12,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - **One animation library: `motion` (`motion/react`).** `framer-motion` has been removed; never add it back.
 - **One icon set: `lucide-react`.** `react-icons` has been removed; never import it.
 - **Data access in `app/lib/*`** (`registry.ts`, `cache.ts`, ...). Pages call those functions directly.
-- **Never fetch our own `/api` from a server component.** `getBaseUrl()` round-trips are legacy; delete usages as you touch them.
+- **Never fetch our own `/api` from a server component.** Pages call `app/lib/*` directly; the only HTTP route is for the client search island.
 - **Always `encodeURIComponent()`** user or package input before putting it in an upstream URL.
 - Sanitize README HTML; never render untrusted HTML with `dangerouslySetInnerHTML`.
 - Secrets via env only; keep `.env.example` in sync. No new dependencies without asking.
@@ -24,8 +24,8 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/components/site-header.tsx` + `search-box.tsx` — server shell and client search island.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
-- APIs: `app/api/search/route.ts`, `app/api/package/[name]/route.ts`.
-- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open TTL cache), `app/lib/registry.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`, `app/lib/get-base-url.ts` (legacy).
+- APIs: `app/api/search/route.ts` (client search only).
+- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open TTL cache), `app/lib/registry.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`.
 
 ## Definition of done
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass.

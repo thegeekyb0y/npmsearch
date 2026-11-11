@@ -15,7 +15,7 @@ All registry access lives in `app/lib/*` (start with `app/lib/registry.ts`). Pag
 | Weekly downloads | `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}` |
 | 30-day trend | `https://api.npmjs.org/downloads/range/last-month/${encodeURIComponent(name)}` |
 
-- Search objects already contain `downloads.weekly` — use it. **Never** fetch downloads per result (current N+1 bug in `app/search/page.tsx`).
+- Search objects already contain `downloads.weekly` — use it. **Never** fetch downloads per result.
 - `downloads.weekly` may be missing: render "Downloads unavailable", don't guess.
 - Scoped packages: encode the whole name (`%40scope%2Fname`) for path params; `encodeURIComponent` is correct for both registry and downloads endpoints.
 - Always send `Accept: application/json` and a `User-Agent` identifying npmsearch where the API allows it.

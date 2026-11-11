@@ -7,7 +7,7 @@ description: Engineering standards for npmsearch — strict TypeScript, boundary
 
 ## TypeScript
 - `strict: true` is on; keep it. No `any`, no `as unknown as`, no `@ts-ignore`. If a type is truly unknown, narrow it.
-- Types for upstream payloads are **local and minimal** (see `RegistryPackageData` in `app/api/package/[name]/route.ts`). Declare only the fields you read.
+- Types for upstream payloads are **local and minimal** (see the zod schemas in `app/lib/registry.ts`). Declare only the fields you read.
 - Prefer `type` for object shapes, `interface` for public props. Export types from `app/lib/*` when a page needs them.
 - `noUncheckedIndexedAccess` is not on, so guard array access manually (`results[0]?.name`).
 
@@ -51,7 +51,7 @@ const SearchResponse = z.object({
 ## Performance budget
 - LCP < 2.0s on desktop, < 2.5s on mobile; **CLS = 0**; no long task > 200ms from our code.
 - No request waterfalls: independent fetches go through `Promise.all` (already used in the package route).
-- Do not fetch per result (the current N+1 downloads bug in `app/search/page.tsx`).
+- Do not fetch per result; search responses already include weekly downloads.
 - Server Components by default; ship client JS only for interaction.
 - Prefer streaming/Suspense + skeletons over blocking the route.
 - Deduplicate requests with `React.cache` per request and Upstash across requests.
