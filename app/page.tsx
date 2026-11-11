@@ -29,7 +29,7 @@ export default function HomePage() {
           {"// npm registry browser"}
         </p>
         <h1 className="mt-4 mb-0 font-mono text-[clamp(32px,6vw,48px)] leading-[1.05] font-semibold tracking-[-0.03em] text-text-primary">
-          search the registry.
+          search the registry<span className="text-brand">.</span>
         </h1>
         <p className="mt-4 mb-0 max-w-[62ch] text-[15px] leading-7 text-text-secondary">
           A faster, quieter interface for the npm ecosystem. No noise, no marketing
@@ -69,7 +69,7 @@ export default function HomePage() {
       >
         {workflow.map((item) => (
           <div key={item.step} className="bg-background px-4 py-5 sm:px-5">
-            <span className="font-mono text-[10px] text-text-secondary">{item.step}</span>
+            <span className="font-mono text-[10px] text-brand">{item.step}</span>
             <h2 className="mt-2 mb-0 font-mono text-[14px] font-medium text-text-primary">
               {item.title}
             </h2>

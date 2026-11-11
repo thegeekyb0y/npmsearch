@@ -12,6 +12,7 @@ import {
 import { emitSearchQuery } from "../lib/search-events";
 
 const DEBOUNCE_MS = 100;
+const DOCK_SETTLE_MS = 800;
 
 function getRouteQuery(pathname: string, searchParams: URLSearchParams) {
   const query = searchParams.get("q")?.trim();
@@ -22,6 +23,16 @@ function getRouteQuery(pathname: string, searchParams: URLSearchParams) {
   return "";
 }
 
+function buttonClass(isHome: boolean) {
+  return isHome
+    ? "border-brand bg-brand text-background hover:border-brand-hover hover:bg-brand-hover"
+    : "border-border-subtle bg-transparent text-text-secondary hover:border-border-strong hover:bg-surface-raised hover:text-text-primary";
+}
+
+function iconClass(isHome: boolean) {
+  return isHome ? "" : "text-brand";
+}
+
 export function SearchBox() {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,7 +41,10 @@ export function SearchBox() {
   const routeQuery = getRouteQuery(pathname, searchParams);
   const [query, setQuery] = useState(routeQuery);
   const [previousRouteQuery, setPreviousRouteQuery] = useState(routeQuery);
+  const [previousIsHome, setPreviousIsHome] = useState(isHome);
 
+  const [animateDock, setAnimateDock] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAppliedRef = useRef(routeQuery);
   const hasLeadingFiredRef = useRef(false);
@@ -39,6 +53,11 @@ export function SearchBox() {
   if (routeQuery !== previousRouteQuery) {
     setPreviousRouteQuery(routeQuery);
     setQuery(routeQuery);
+  }
+
+  if (isHome !== previousIsHome) {
+    setPreviousIsHome(isHome);
+    if (isHome) setAnimateDock(false);
   }
 
   useEffect(() => {
@@ -79,6 +98,45 @@ export function SearchBox() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!animateDock || isHome) return;
+
+    const timer = window.setTimeout(() => setAnimateDock(false), DOCK_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [animateDock, isHome]);
+
+  useEffect(() => {
+    if (!isHome) return;
+
+    const form = formRef.current;
+    const wrapper = form?.parentElement;
+    const container = form?.closest("[data-header-inner]");
+    if (!form || !wrapper || !container) return;
+
+    const update = () => {
+      const containerRect = container.getBoundingClientRect();
+      const paddingLeft = Number.parseFloat(
+        getComputedStyle(container).paddingLeft,
+      );
+      const contentLeft = containerRect.left + paddingLeft;
+      const offset = wrapper.getBoundingClientRect().left - contentLeft;
+
+      form.style.setProperty("--home-dock-x", `${-offset}px`);
+    };
+
+    update();
+    window.addEventListener("resize", update);
+
+    return () => {
+      window.removeEventListener("resize", update);
+      form.style.removeProperty("--home-dock-x");
+    };
+  }, [isHome, pathname]);
+
+  function markDockAnimation() {
+    setAnimateDock(true);
+  }
+
   function applyQuery(raw: string) {
     const trimmed = raw.trim();
 
@@ -100,6 +158,7 @@ export function SearchBox() {
       return;
     }
 
+    markDockAnimation();
     startTransition(() => router.push(target));
   }
 
@@ -146,25 +205,28 @@ export function SearchBox() {
       return;
     }
 
+    markDockAnimation();
     startTransition(() => router.push(target));
   }
 
+  const dataHome = isHome ? "true" : "false";
+  const dataSnap = animateDock && !isHome ? "false" : "true";
+
   return (
     <form
+      ref={formRef}
       action="/search"
       method="GET"
       role="search"
+      data-home={dataHome}
+      data-snap={dataSnap}
       onSubmit={handleSubmit}
-      className={`flex min-w-0 flex-1 items-center gap-2 transition-transform duration-300 ease-out motion-reduce:transition-none lg:max-w-[560px] lg:pointer-events-auto lg:will-change-transform ${
-        isHome
-          ? "lg:translate-y-[calc(50dvh_-_24px)]"
-          : "lg:translate-y-0"
-      }`}
+      className="search-dock flex min-w-0 flex-1 items-center gap-2 lg:max-w-[560px]"
     >
       <div className="relative min-w-0 flex-1">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-text-secondary"
+          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-brand"
         >
           /
         </span>
@@ -197,11 +259,15 @@ export function SearchBox() {
       <button
         type="submit"
         aria-label="Search packages"
-        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary sm:px-3 ${
+        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border px-2 text-[12px] font-medium transition-colors duration-150 ease-out sm:px-3 ${
           isHome ? "lg:min-h-12 lg:min-w-12" : ""
-        }`}
+        } ${buttonClass(isHome)}`}
       >
-        <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        <Search
+          className={`h-4 w-4 ${iconClass(isHome)}`}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
         <span className="hidden sm:inline">search</span>
       </button>
     </form>
@@ -217,16 +283,14 @@ export function SearchBoxFallback() {
       action="/search"
       method="GET"
       role="search"
-      className={`flex min-w-0 flex-1 items-center gap-2 transition-transform duration-300 ease-out motion-reduce:transition-none lg:max-w-[560px] lg:pointer-events-auto lg:will-change-transform ${
-        isHome
-          ? "lg:translate-y-[calc(50dvh_-_24px)]"
-          : "lg:translate-y-0"
-      }`}
+      data-home={isHome ? "true" : "false"}
+      data-snap="true"
+      className="search-dock flex min-w-0 flex-1 items-center gap-2 lg:max-w-[560px]"
     >
       <div className="relative min-w-0 flex-1">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-text-secondary"
+          className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-[12px] text-brand"
         >
           /
         </span>
@@ -243,11 +307,15 @@ export function SearchBoxFallback() {
       <button
         type="submit"
         aria-label="Search packages"
-        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-transparent px-2 text-[12px] font-medium text-text-secondary sm:px-3 ${
+        className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border px-2 text-[12px] font-medium sm:px-3 ${
           isHome ? "lg:min-h-12 lg:min-w-12" : ""
-        }`}
+        } ${buttonClass(isHome)}`}
       >
-        <Search className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        <Search
+          className={`h-4 w-4 ${iconClass(isHome)}`}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
         <span className="hidden sm:inline">search</span>
       </button>
     </form>
