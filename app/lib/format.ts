@@ -29,7 +29,7 @@ export function formatDate(value?: string) {
 }
 
 export function formatRangeLabel(start?: string, end?: string) {
-  if (!start || !end) return "Last 7 days";
+  if (!start || !end) return "Last 30 days";
   return `${formatDate(start)} to ${formatDate(end)}`;
 }
 

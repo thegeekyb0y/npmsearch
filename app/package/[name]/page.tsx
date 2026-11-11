@@ -9,7 +9,9 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import rehypeShiki from "@shikijs/rehype";
 import { MarkdownAsync, type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
@@ -29,6 +31,7 @@ import {
   StatusPanel,
   VersionBadge,
 } from "@/app/components/ui";
+import { getPackageAnalytics } from "@/app/lib/analytics";
 import {
   formatBytes,
   formatCompactNumber,
@@ -43,6 +46,14 @@ import {
 } from "@/app/lib/readme";
 import { getPackage } from "@/app/lib/registry";
 import type { MetaItem, TabItem } from "@/app/lib/types";
+
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+      {children}
+    </span>
+  );
+}
 
 const markdownComponents: Components = {
   h1: ({ children, id }) => (
@@ -183,37 +194,53 @@ export default async function PackagePage({
   const license = latestInfo?.license ?? data.license ?? "Unknown";
   const github = data.github;
   const toc = extractHeadings(data.readme);
-  const renderedReadme = data.readme?.trim()
-    ? await MarkdownAsync({
-        children: data.readme,
-        remarkPlugins: [remarkGfm],
-        rehypePlugins: [
-          rehypeRaw,
-          [rehypeRewriteReadmeUrls, { repositoryUrl }],
-          [rehypeSanitize, readmeSanitizeSchema],
-          rehypeSlug,
-          rehypeAddCodeCopyButtons,
-          [
-            rehypeShiki,
-            {
-              theme: "vesper",
-              defaultLanguage: "text",
-              fallbackLanguage: "text",
-              lazy: true,
-            },
+  const [analytics, renderedReadme] = await Promise.all([
+    getPackageAnalytics(packageName, latestInfo),
+    data.readme?.trim()
+      ? MarkdownAsync({
+          children: data.readme,
+          remarkPlugins: [remarkGfm],
+          rehypePlugins: [
+            rehypeRaw,
+            [rehypeRewriteReadmeUrls, { repositoryUrl }],
+            [rehypeSanitize, readmeSanitizeSchema],
+            rehypeSlug,
+            rehypeAddCodeCopyButtons,
+            [
+              rehypeShiki,
+              {
+                theme: "vesper",
+                defaultLanguage: "text",
+                fallbackLanguage: "text",
+                lazy: true,
+              },
+            ],
           ],
-        ],
-        components: markdownComponents,
-      })
-    : null;
+          components: markdownComponents,
+        })
+      : null,
+  ] as const);
+  const formats = analytics?.moduleFormats;
+  const installSize = analytics?.installSize;
 
   const metaItems: MetaItem[] = [
     { label: "license", value: license },
-    { label: "deps", value: String(depsCount) },
     {
-      label: "size",
-      value: formatBytes(latestInfo?.dist?.unpackedSize),
-      hint: "Unpacked package size. Install size includes dependencies.",
+      label: "deps",
+      value: String(depsCount),
+      hint:
+        (analytics?.outdatedCount ?? 0) > 0
+          ? `${analytics?.outdatedCount} direct dependencies outside their declared range.`
+          : "Direct dependencies from the latest version.",
+    },
+    {
+      label: "install",
+      value: installSize
+        ? `${formatBytes(installSize.bytes)}${installSize.truncated ? "+" : ""}`
+        : formatBytes(latestInfo?.dist?.unpackedSize),
+      hint: installSize
+        ? `Estimated unpacked size across ${installSize.packages} packages. Install size includes dependencies.`
+        : "Unpacked package size. Install size includes dependencies.",
     },
     { label: "node", value: nodeRange ?? "any" },
     { label: "published", value: formatDate(data.publishedAt) },
@@ -324,17 +351,12 @@ export default async function PackagePage({
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
-                    {nodeRange ? `node ${nodeRange}` : "node any"}
-                  </span>
-                  <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
-                    {depsCount} deps
-                  </span>
-                  {repositoryUrl ? (
-                    <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
-                      open source
-                    </span>
-                  ) : null}
+                  <Chip>{nodeRange ? `node ${nodeRange}` : "node any"}</Chip>
+                  <Chip>{depsCount} deps</Chip>
+                  {formats?.esm ? <Chip>esm</Chip> : null}
+                  {formats?.cjs ? <Chip>cjs</Chip> : null}
+                  {formats?.types ? <Chip>types</Chip> : null}
+                  {repositoryUrl ? <Chip>open source</Chip> : null}
                 </div>
               </section>
 
@@ -401,9 +423,13 @@ export default async function PackagePage({
 
           <div className="min-w-0">
             <RailSection
-              title="weekly downloads"
+              title="downloads"
               id="downloads"
-              subtitle="Across all versions."
+              subtitle={
+                data.downloadTrend.length > 0
+                  ? `Across all versions, last ${data.downloadTrend.length} days.`
+                  : "Across all versions."
+              }
             >
               <p className="m-0 font-mono text-[11px] text-text-secondary">
                 {formatRangeLabel(
@@ -411,13 +437,24 @@ export default async function PackagePage({
                   data.downloadRange?.end,
                 )}
               </p>
-              <p className="mt-2 mb-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-brand-2">
-                {typeof data.weeklyDownloads === "number"
-                  ? data.weeklyDownloads.toLocaleString("en-US")
-                  : "Unknown"}
-              </p>
+              <div className="mt-2 flex items-baseline gap-2">
+                <p className="m-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-brand-2">
+                  {typeof data.weeklyDownloads === "number"
+                    ? data.weeklyDownloads.toLocaleString("en-US")
+                    : "Unknown"}
+                </p>
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                  weekly
+                </span>
+              </div>
+              {typeof data.monthlyDownloads === "number" ? (
+                <p className="mt-1.5 mb-0 font-mono text-[11px] text-text-secondary">
+                  {data.monthlyDownloads.toLocaleString("en-US")} in 30 days
+                </p>
+              ) : null}
               <DownloadSparkline
                 points={data.downloadTrend ?? []}
+                label={`${data.downloadTrend.length || 30}-day download trend`}
                 className="mt-3 h-14 w-full text-brand"
               />
             </RailSection>
@@ -440,7 +477,64 @@ export default async function PackagePage({
                   {nodeRange || "any"}
                 </span>
               </div>
+              {formats ? (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {formats.esm ? <Chip>esm</Chip> : null}
+                  {formats.cjs ? <Chip>cjs</Chip> : null}
+                  {formats.types ? <Chip>types</Chip> : null}
+                </div>
+              ) : null}
             </RailSection>
+
+            {analytics && analytics.dependencies.length > 0 ? (
+              <RailSection
+                title="dependencies"
+                id="dependencies"
+                subtitle={
+                  analytics.outdatedCount > 0
+                    ? `${analytics.dependencies.length} direct · ${analytics.outdatedCount} outdated`
+                    : `${analytics.dependencies.length} direct dependencies.`
+                }
+              >
+                <div>
+                  {analytics.dependencies.slice(0, 20).map((dependency) => (
+                    <div
+                      key={dependency.name}
+                      className="flex items-start justify-between gap-3 border-b border-border-subtle py-2 last:border-b-0"
+                    >
+                      <div className="min-w-0">
+                        <Link
+                          href={`/package/${encodeURIComponent(dependency.name)}`}
+                          className="block truncate font-mono text-[12px] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
+                        >
+                          {dependency.name}
+                        </Link>
+                        <p className="mt-0.5 mb-0 truncate font-mono text-[10px] text-text-secondary">
+                          {dependency.range}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        {dependency.outdated && dependency.latest ? (
+                          <span className="inline-flex items-center rounded-[var(--radius-xs)] border border-[var(--accent-soft-border)] bg-[var(--accent-soft-bg)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
+                            outdated
+                          </span>
+                        ) : null}
+                        {dependency.latest ? (
+                          <p className="mt-0.5 mb-0 font-mono text-[10px] text-text-secondary">
+                            {dependency.latest}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                  {analytics.dependencies.length > 20 ? (
+                    <p className="mt-2 mb-0 font-mono text-[10px] text-text-secondary">
+                      +{analytics.dependencies.length - 20} more
+                    </p>
+                  ) : null}
+                </div>
+              </RailSection>
+            ) : null}
 
             <RailSection title="versions" id="versions" subtitle="Recent releases.">
               <div>

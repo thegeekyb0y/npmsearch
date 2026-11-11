@@ -7,6 +7,7 @@ export const CACHE_FRESH_TTL = {
   package: 300,
   downloads: 300,
   github: 86_400,
+  analytics: 3_600,
 } as const;
 
 export const CACHE_HARD_TTL = {
@@ -14,6 +15,7 @@ export const CACHE_HARD_TTL = {
   package: 86_400,
   downloads: 86_400,
   github: 604_800,
+  analytics: 86_400,
 } as const;
 
 /** Backwards-compatible alias for the fresh window. */
@@ -57,6 +59,10 @@ export function packageCacheKey(name: string): string {
 
 export function downloadsCacheKey(name: string): string {
   return `${CACHE_VERSION}:downloads:${normalizePackageInput(name)}`;
+}
+
+export function analyticsCacheKey(name: string): string {
+  return `${CACHE_VERSION}:analytics:${normalizePackageInput(name)}`;
 }
 
 export function githubCacheKey(owner: string, repo: string): string {
