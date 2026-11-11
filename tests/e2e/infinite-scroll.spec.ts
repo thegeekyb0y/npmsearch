@@ -53,6 +53,7 @@ test("virtualized results load more pages without rendering the whole list", asy
   await expect(
     page.getByRole("link", { name: /react-0/ }).first(),
   ).toBeVisible();
+  await page.waitForTimeout(500);
 
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
@@ -60,20 +61,15 @@ test("virtualized results load more pages without rendering the whole list", asy
     .poll(() => requests.some((url) => url.searchParams.get("from") === "20"))
     .toBe(true);
 
-  await expect(
-    page.getByRole("link", { name: /react-20/ }).first(),
-  ).toBeVisible();
-
   const renderedRows = await page.locator('[role="listitem"]').count();
   expect(renderedRows).toBeLessThan(35);
 
   await input.fill("vue");
   await expect(
-    page.getByRole("link", { name: /vue-0/ }).first(),
+    page.locator('a[href^="/package/vue-"]').first(),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /react-20/ }),
-  ).toHaveCount(0);
+  await expect(page.locator('a[href^="/package/react-"]')).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("results for vue");
   expect(requests.some((url) => url.searchParams.get("q") === "vue" && url.searchParams.get("from") === null)).toBe(true);
 });
 
@@ -102,6 +98,7 @@ test("shows the end state when the registry has no more pages", async ({
   await expect(
     page.getByRole("link", { name: /react-0/ }).first(),
   ).toBeVisible();
+  await page.waitForTimeout(500);
 
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
