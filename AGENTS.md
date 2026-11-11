@@ -26,7 +26,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).
-- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open TTL cache), `app/lib/registry.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`.
+- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open fresh/hard TTL), `app/lib/background.ts` (`after()` refresh, deduped), `app/lib/registry.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`.
 
 ## Definition of done
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass.
@@ -46,7 +46,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 0. **Foundation.** Hairline tokens and primitives, stable 56px command bar, server shell with a client search island, `motion/react` only, baseline unit/e2e/CI, README and `.env.example`. *(done)*
 1. **Registry migration.** `registry.npmjs.org/-/v1/search`, `downloads.weekly`, direct lib access, GitHub stats, validated routes, error states. *(done)*
 2. **Instant search.** 100ms leading+trailing debounce, `AbortController`, URL sync, client query cache. *(done)*
-3. **SWR cache.** Upstash `{ data, cachedAt }`: serve stale immediately, refresh in background with `after()`.
+3. **SWR cache.** Upstash `{ data, cachedAt }`, fresh/hard TTLs, stale served immediately, background refresh with `after()`, one in-flight refresh per key. *(done)*
 4. **Infinite scroll.** Virtualized list using registry `from=` pagination, plus search skeletons.
 5. **Keyboard layer.** `/` focuses search, arrow-key navigation, Enter opens, command palette.
 6. **README.** `rehype-raw` + `rehype-sanitize`; rewrite relative image/link URLs to the repository raw base.

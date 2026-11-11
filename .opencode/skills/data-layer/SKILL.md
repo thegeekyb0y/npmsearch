@@ -56,41 +56,25 @@ const downloadsKey = `${CACHE_VERSION}:downloads:${normalizePackageName(name)}`;
 | search | 60s | 1h |
 | package | 5m | 24h |
 | downloads | 5m | 24h |
+| github | 24h | 7d |
 
-Store `{ data, cachedAt }`, never a bare payload, so freshness is explicit. Serve stale immediately, refresh in the background with `after()` from `next/server` (or `waitUntil`).
+Store `{ data, cachedAt }`, never a bare payload. `cacheSet` always writes the **hard** TTL; freshness is checked in the caller with `isFresh`/`isExpired`.
 
 ```ts
-import { after } from "next/server";
+const key = searchCacheKey(q);
+const entry = await cacheGetEntry<SearchResults>(key); // never throws
 
-type Entry<T> = { data: T; cachedAt: number };
-
-export async function getSearch(q: string) {
-  const key = searchKey(q);
-  const entry = await cacheGet<Entry<SearchResult>>(key); // never throws
-  const age = entry ? Date.now() - entry.cachedAt : Infinity;
-
-  if (entry && age < 60_000) return entry.data;
-
-  if (entry) {
-    after(() => refreshSearch(q, key)); // stale-while-revalidate
-    return entry.data;
+if (entry && !isExpired(entry, CACHE_HARD_TTL.search)) {
+  if (!isFresh(entry, CACHE_FRESH_TTL.search)) {
+    runInBackground(key, () => refreshSearch(q, key)); // after(), deduped
   }
-  return refreshSearch(q, key); // cold miss: must await
+  return entry.data; // serve stale immediately
 }
 
-async function refreshSearch(q: string, key: string) {
-  try {
-    const res = await fetch(searchUrl(q), { headers: { Accept: "application/json" } });
-    if (!res.ok) return null;                  // do not cache failures
-    const data = SearchResponse.parse(await res.json());
-    await cacheSet(key, { data, cachedAt: Date.now() }, 3600);
-    return data;
-  } catch (error) {
-    console.error("registry search failed", { q, error });
-    return null;
-  }
-}
+return refreshSearch(q, key); // cold miss: must await
 ```
+
+`runInBackground` lives in `app/lib/background.ts`: it uses `after()` from `next/server`, allows one in-flight refresh per key per process, and logs failures without throwing.
 
 Rules:
 - The request path must never await a background refresh. Only `after()` it.
