@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { CommandPaletteTrigger } from "./command-palette-trigger";
 import { HeaderBackdrop } from "./header-backdrop";
 import { SearchBox, SearchBoxFallback } from "./search-box";
 
@@ -34,6 +35,7 @@ export function SiteHeader() {
           aria-label="Primary"
           className="ml-auto hidden shrink-0 items-center gap-4 font-mono text-[11px] text-text-secondary md:flex"
         >
+          <CommandPaletteTrigger />
           <Link
             href="/search"
             className="transition-colors duration-150 ease-out hover:text-brand"

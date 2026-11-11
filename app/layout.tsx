@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { GlobalShortcuts } from "./components/global-shortcuts";
 import { MotionProvider } from "./components/motion-provider";
 import { SiteFooter } from "./components/site-footer";
 import { SiteHeader } from "./components/site-header";
@@ -47,6 +48,7 @@ export default function RootLayout({
           </main>
           <SiteFooter />
         </MotionProvider>
+        <GlobalShortcuts />
         <Analytics />
       </body>
     </html>

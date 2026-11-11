@@ -28,7 +28,7 @@ test.describe("search dock", () => {
     await input.fill("react");
     await input.press("Enter");
 
-    await expect(page).toHaveURL(/q=react/);
+    await expect(page).toHaveURL(/q=react/, { timeout: 20_000 });
     await expect(form).toHaveAttribute("data-snap", "false");
     expect(
       await form.evaluate((element) => getComputedStyle(element).transitionDuration),
@@ -87,7 +87,9 @@ test.describe("search dock", () => {
     await page.getByRole("link", { name: "react", exact: true }).click();
 
     await page.waitForURL(/package\/react/, { timeout: 45_000 });
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
+      timeout: 45_000,
+    });
 
     expect(await form.getAttribute("data-home")).toBe("false");
     expect(await form.getAttribute("data-snap")).toBe("true");

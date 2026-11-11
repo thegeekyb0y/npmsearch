@@ -1,4 +1,9 @@
 import Link from "next/link";
+import type {
+  FocusEventHandler,
+  KeyboardEventHandler,
+  Ref,
+} from "react";
 import type { PackageSummary } from "@/app/lib/types";
 import { ExactBadge } from "./ui";
 
@@ -11,12 +16,25 @@ function formatDate(value?: string) {
   }).format(new Date(value));
 }
 
-export function SearchRow({ item }: { item: PackageSummary }) {
+export function SearchRow({
+  item,
+  linkRef,
+  onKeyDown,
+  onFocus,
+}: {
+  item: PackageSummary;
+  linkRef?: Ref<HTMLAnchorElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLAnchorElement>;
+  onFocus?: FocusEventHandler<HTMLAnchorElement>;
+}) {
   const publishedAt = formatDate(item.publishedAt);
 
   return (
     <Link
+      ref={linkRef}
       href={`/package/${item.name}`}
+      onKeyDown={onKeyDown}
+      onFocus={onFocus}
       className="group relative block border-b border-border-subtle transition-colors duration-150 ease-out hover:bg-surface-hover focus-visible:bg-surface-hover"
     >
       <span
