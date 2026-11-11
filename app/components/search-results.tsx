@@ -93,6 +93,7 @@ export function SearchResultsView({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState(false);
   const [exhausted, setExhausted] = useState(false);
+  const [paginationReady, setPaginationReady] = useState(true);
   const [previousInitialQuery, setPreviousInitialQuery] =
     useState(initialQuery);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
@@ -102,6 +103,7 @@ export function SearchResultsView({
   const moreAbortRef = useRef<AbortController | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef(new Map<number, HTMLAnchorElement>());
+  const paginationTimerRef = useRef<number | null>(null);
 
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
@@ -131,6 +133,12 @@ export function SearchResultsView({
         setQuery(nextQuery);
         setData(nextData);
         setStatus("idle");
+      });
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: "auto" });
+        });
       });
     },
     [],
@@ -168,8 +176,17 @@ export function SearchResultsView({
       setIsLoadingMore(false);
       setMoreError(false);
       setExhausted(false);
+      setPaginationReady(false);
+      if (paginationTimerRef.current) {
+        window.clearTimeout(paginationTimerRef.current);
+      }
+      paginationTimerRef.current = window.setTimeout(() => {
+        setPaginationReady(true);
+        paginationTimerRef.current = null;
+      }, 600);
       setQuery(next);
       setStatus("loading");
+      window.scrollTo({ top: 0, behavior: "auto" });
 
       try {
         const response = await fetch(
@@ -204,6 +221,7 @@ export function SearchResultsView({
 
   const hasMore =
     status === "idle" &&
+    paginationReady &&
     !exhausted &&
     canLoadMore(data) &&
     nextPageFrom(data) < MAX_SEARCH_FROM;
@@ -277,16 +295,11 @@ export function SearchResultsView({
       window.removeEventListener("popstate", handlePopState);
       abortRef.current?.abort();
       moreAbortRef.current?.abort();
+      if (paginationTimerRef.current) {
+        window.clearTimeout(paginationTimerRef.current);
+      }
     };
   }, [load]);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "auto" });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [query]);
 
   useEffect(() => {
     if (!hasMore || isLoadingMore || moreError) return;
@@ -488,7 +501,10 @@ export function SearchResultsView({
             className={`relative border-t border-border-subtle ${
               isLoading ? "opacity-60" : "opacity-100"
             }`}
-            style={{ height: rowVirtualizer.getTotalSize() }}
+            style={{
+              height: rowVirtualizer.getTotalSize(),
+              overflowAnchor: "none",
+            }}
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const item = data.results[virtualRow.index];

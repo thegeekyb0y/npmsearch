@@ -10,14 +10,17 @@ import {
   Users,
 } from "lucide-react";
 import { notFound } from "next/navigation";
-import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeShiki from "@shikijs/rehype";
+import { MarkdownAsync, type Components } from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { DownloadSparkline } from "@/app/components/download-sparkline";
 import { InstallBlock } from "@/app/components/install-block";
 import { MetaStrip } from "@/app/components/meta-strip";
 import { RailSection } from "@/app/components/rail-section";
+import { ReadmeCopy } from "@/app/components/readme-copy";
 import { TabRail } from "@/app/components/tab-rail";
 import {
   AppShell,
@@ -32,38 +35,78 @@ import {
   formatDate,
   formatRangeLabel,
 } from "@/app/lib/format";
+import {
+  extractHeadings,
+  readmeSanitizeSchema,
+  rehypeAddCodeCopyButtons,
+  rehypeRewriteReadmeUrls,
+} from "@/app/lib/readme";
 import { getPackage } from "@/app/lib/registry";
 import type { MetaItem, TabItem } from "@/app/lib/types";
 
 const markdownComponents: Components = {
-  h1: ({ children }) => (
-    <h1 className="mt-8 mb-4 text-[28px] font-semibold tracking-[-0.02em] text-text-primary first:mt-0">
-      {children}
-    </h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="mt-8 mb-3 border-b border-border-subtle pb-3 text-[22px] font-semibold tracking-[-0.02em] text-text-primary">
+  h1: ({ children, id }) => (
+    <h2
+      id={id}
+      className="mt-8 mb-4 scroll-mt-24 text-[28px] font-semibold tracking-[-0.02em] text-text-primary first:mt-0"
+    >
       {children}
     </h2>
   ),
-  h3: ({ children }) => (
-    <h3 className="mt-7 mb-3 text-[17px] font-semibold tracking-[-0.01em] text-text-primary">
+  h2: ({ children, id }) => (
+    <h3
+      id={id}
+      className="mt-8 mb-3 scroll-mt-24 border-b border-border-subtle pb-3 text-[22px] font-semibold tracking-[-0.02em] text-text-primary"
+    >
       {children}
     </h3>
+  ),
+  h3: ({ children, id }) => (
+    <h4
+      id={id}
+      className="mt-7 mb-3 scroll-mt-24 text-[17px] font-semibold tracking-[-0.01em] text-text-primary"
+    >
+      {children}
+    </h4>
   ),
   p: ({ children }) => (
     <p className="my-4 text-[14px] leading-7 text-text-secondary">{children}</p>
   ),
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors duration-150 ease-out hover:text-brand"
-    >
-      {children}
-      <ExternalLinkIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
-    </a>
+  a: ({ href, children }) => {
+    const external = href?.startsWith("http") ?? false;
+
+    return (
+      <a
+        href={href}
+        {...(external
+          ? { target: "_blank", rel: "noreferrer noopener" }
+          : {})}
+        className="inline-flex items-center gap-1 font-medium text-text-primary underline decoration-border-strong underline-offset-4 transition-colors duration-150 ease-out hover:text-brand"
+      >
+        {children}
+        {external ? (
+          <ExternalLinkIcon
+            aria-hidden="true"
+            className="h-3.5 w-3.5"
+            strokeWidth={1.8}
+          />
+        ) : null}
+      </a>
+    );
+  },
+  img: ({ src, alt, title, width, height }) => (
+    // README images come from arbitrary hosts; optimizing them is unsafe.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt ?? ""}
+      title={title}
+      width={width}
+      height={height}
+      loading="lazy"
+      decoding="async"
+      className="my-4 max-w-full rounded-[var(--radius-sm)]"
+    />
   ),
   ul: ({ children }) => (
     <ul className="my-4 list-disc space-y-2 pl-6 text-[14px] leading-7 text-text-secondary">
@@ -96,46 +139,6 @@ const markdownComponents: Components = {
     </td>
   ),
   hr: () => <hr className="my-8 border-0 border-t border-border-subtle" />,
-  code({ className, children }) {
-    const match = /language-(\w+)/.exec(className ?? "");
-    const code = String(children).replace(/\n$/, "");
-
-    if (match) {
-      return (
-        <div className="my-6 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface-code">
-          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2 text-[11px] uppercase tracking-[0.08em] text-text-secondary">
-            <span>{match[1]}</span>
-            <span>code</span>
-          </div>
-          <SyntaxHighlighter
-            PreTag="div"
-            language={match[1]}
-            style={oneDark}
-            customStyle={{
-              margin: 0,
-              padding: "14px",
-              background: "#0d0d0d",
-              fontSize: "13px",
-              lineHeight: 1.65,
-            }}
-            codeTagProps={{
-              style: {
-                fontFamily: "var(--font-geist-mono)",
-              },
-            }}
-          >
-            {code}
-          </SyntaxHighlighter>
-        </div>
-      );
-    }
-
-    return (
-      <code className="rounded-[var(--radius-sm)] border border-border-subtle bg-surface-raised px-[5px] py-px font-mono text-[13px] text-text-primary">
-        {children}
-      </code>
-    );
-  },
 };
 
 export default async function PackagePage({
@@ -179,6 +182,30 @@ export default async function PackagePage({
   const nodeRange = latestInfo?.engines?.node;
   const license = latestInfo?.license ?? data.license ?? "Unknown";
   const github = data.github;
+  const toc = extractHeadings(data.readme);
+  const renderedReadme = data.readme?.trim()
+    ? await MarkdownAsync({
+        children: data.readme,
+        remarkPlugins: [remarkGfm],
+        rehypePlugins: [
+          rehypeRaw,
+          [rehypeRewriteReadmeUrls, { repositoryUrl }],
+          [rehypeSanitize, readmeSanitizeSchema],
+          rehypeSlug,
+          rehypeAddCodeCopyButtons,
+          [
+            rehypeShiki,
+            {
+              theme: "vesper",
+              defaultLanguage: "text",
+              fallbackLanguage: "text",
+              lazy: true,
+            },
+          ],
+        ],
+        components: markdownComponents,
+      })
+    : null;
 
   const metaItems: MetaItem[] = [
     { label: "license", value: license },
@@ -330,17 +357,44 @@ export default async function PackagePage({
                   </span>
                 </div>
 
+                {toc.length > 1 ? (
+                  <details className="mb-5 rounded-[var(--radius-sm)] border border-border-subtle px-3 py-2">
+                    <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                      contents
+                    </summary>
+                    <ul className="mt-2 mb-0 list-none space-y-1 p-0">
+                      {toc.map((heading) => (
+                        <li
+                          key={heading.id}
+                          className={heading.depth === 3 ? "pl-3" : ""}
+                        >
+                          <a
+                            href={`#${heading.id}`}
+                            className="font-mono text-[11px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand"
+                          >
+                            {heading.text}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+
                 {data.readmeTruncated ? (
                   <p className="mb-4 text-[11px] text-text-secondary">
                     README truncated to 256 KB.
                   </p>
                 ) : null}
 
-                <div className="min-w-0 overflow-hidden">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                    {data.readme?.trim() || "No README available."}
-                  </ReactMarkdown>
-                </div>
+                {renderedReadme ? (
+                  <ReadmeCopy>
+                    <div className="min-w-0 overflow-hidden">{renderedReadme}</div>
+                  </ReadmeCopy>
+                ) : (
+                  <p className="m-0 text-[14px] text-text-secondary">
+                    No README available.
+                  </p>
+                )}
               </section>
             </div>
           </div>

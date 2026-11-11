@@ -42,7 +42,7 @@ Never commit `.env`. Missing `GITHUB_TOKEN` must never fail a build or a page re
 
 ## Architecture
 
-- `app/lib/*` — registry, downloads, GitHub and cache access. Pages call this directly.
+- `app/lib/*` — registry, downloads, GitHub, cache and README rendering. Pages call this directly.
 - `app/components/ui.tsx` — shared primitives; `app/components/search-results.tsx` — client results with aborting fetches and a 60s query cache.
 - `app/search/page.tsx` — search route.
 - `app/package/[name]/page.tsx` — package route and README.
@@ -65,4 +65,4 @@ Hairlines over cards, monospace for identifiers and numbers, one accent color, n
 
 ## Status
 
-Phases 0–5 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, instant debounced search, stale-while-revalidate caching, virtualized infinite scroll, and the keyboard layer with command palette. Phase 6 (README pipeline) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.
+Phases 0–6 are complete: stable 56px shell, hairline primitives, official registry search, weekly downloads without N+1 requests, optional GitHub stats, error states, instant debounced search, stale-while-revalidate caching, virtualized infinite scroll, the keyboard layer with command palette, and the sanitized Shiki README pipeline with TOC and copy buttons. Phase 7 (package analytics) is next. See `AGENTS.md` for the roadmap and `.opencode/skills/` for implementation rules.

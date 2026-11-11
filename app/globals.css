@@ -172,10 +172,64 @@
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
+.readme-code {
+  position: relative;
+  margin: 1.5rem 0;
+}
+
+.readme-code pre {
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-code);
+  padding: 14px;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.readme-code pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.readme :not(pre) > code {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  padding: 1px 5px;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.readme-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 0 10px;
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.readme-copy:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.readme img {
+  max-width: 100%;
+  height: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
