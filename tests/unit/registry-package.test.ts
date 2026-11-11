@@ -11,7 +11,12 @@ vi.mock("../../app/lib/cache", async (importOriginal) => {
   };
 });
 
+vi.mock("../../app/lib/github", () => ({
+  getGithubStats: vi.fn(async () => null),
+}));
+
 import { cacheGet, cacheSet } from "../../app/lib/cache";
+import { getGithubStats } from "../../app/lib/github";
 import {
   README_LIMIT,
   RegistryError,
@@ -136,6 +141,25 @@ describe("getPackage", () => {
 
     await expect(getPackage("react")).resolves.toEqual(cached);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("includes GitHub stats when they are available", async () => {
+    vi.mocked(getGithubStats).mockResolvedValueOnce({
+      stars: 200_000,
+      forks: 42_000,
+      issues: 1_100,
+      url: "https://github.com/facebook/react",
+    });
+    mockRegistry();
+
+    const data = await getPackage("react");
+
+    expect(data?.github).toEqual({
+      stars: 200_000,
+      forks: 42_000,
+      issues: 1_100,
+      url: "https://github.com/facebook/react",
+    });
   });
 
   it("keeps the package when downloads fail", async () => {

@@ -7,6 +7,7 @@ import {
   packageCacheKey,
   searchCacheKey,
 } from "./cache";
+import { getGithubStats } from "./github";
 import type {
   DownloadPoint,
   LatestVersionInfo,
@@ -433,6 +434,8 @@ export async function getPackage(
   const weeklyDownloads =
     downloadTrend.reduce((sum, entry) => sum + entry.downloads, 0) ||
     undefined;
+  const repository = normalizeRepository(packument.repository);
+  const github = await getGithubStats(repository?.url);
 
   const data: PackageDetail = {
     name: packument.name,
@@ -451,7 +454,7 @@ export async function getPackage(
       name: maintainer.name,
       email: maintainer.email ?? undefined,
     })),
-    repository: normalizeRepository(packument.repository),
+    repository,
     latestVersion: latestVersion || "Unknown",
     latestVersionInfo: buildLatestVersionInfo(latestVersionData),
     recentVersions: buildRecentVersions(
@@ -466,6 +469,7 @@ export async function getPackage(
     publishedAt: latestVersion
       ? packument.time?.[latestVersion]
       : undefined,
+    github: github ?? undefined,
   };
 
   await cacheSet(cacheKey, data, CACHE_TTL.package);
