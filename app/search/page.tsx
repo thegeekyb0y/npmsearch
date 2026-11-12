@@ -1,14 +1,7 @@
 import { SearchResultsView } from "../components/search-results";
-import { AppShell, PageContainer, StatusPanel } from "../components/ui";
+import { AppShell, PageContainer } from "../components/ui";
 import { searchPackages } from "../lib/registry";
 import type { SearchResults } from "../lib/types";
-
-const EMPTY_RESULTS: SearchResults = {
-  total: 0,
-  results: [],
-  from: 0,
-  size: 20,
-};
 
 export default async function SearchPage({
   searchParams,
@@ -18,23 +11,15 @@ export default async function SearchPage({
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
 
-  let data = EMPTY_RESULTS;
+  let data: SearchResults | undefined;
 
   if (query) {
     try {
       data = await searchPackages(query);
     } catch {
-      return (
-        <AppShell>
-          <PageContainer className="py-8">
-            <StatusPanel
-              error
-              title="Search is unavailable"
-              message="We couldn't reach the npm registry right now. Try the same query again in a moment."
-            />
-          </PageContainer>
-        </AppShell>
-      );
+      // The client retries the query; a server hiccup must not replace results
+      // with a terminal error panel.
+      data = undefined;
     }
   }
 

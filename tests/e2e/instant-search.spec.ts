@@ -141,3 +141,45 @@ test("repeating a recent query is served from the client cache", async ({
 
   expect(requests.length).toBe(beforeRepeat);
 });
+
+test("enter retries a failed search without a server round trip", async ({
+  page,
+}) => {
+  let shouldFail = true;
+
+  await page.route("**/api/search**", async (route) => {
+    if (shouldFail) {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Registry unavailable" }),
+      });
+      return;
+    }
+
+    const url = new URL(route.request().url());
+    const query = url.searchParams.get("q") ?? "react";
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(payloadFor(query)),
+    });
+  });
+
+  await page.goto("/search");
+
+  const input = page.getByRole("searchbox", { name: "Search npm packages" });
+  await input.fill("react");
+
+  await expect(
+    page.getByRole("heading", { name: "Search is unavailable" }),
+  ).toBeVisible({ timeout: 15_000 });
+
+  shouldFail = false;
+  await input.press("Enter");
+
+  await expect(
+    page.locator('a[href="/package/react"]').first(),
+  ).toBeVisible({ timeout: 15_000 });
+});
