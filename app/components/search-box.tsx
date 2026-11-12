@@ -204,8 +204,8 @@ export function SearchBox() {
     rememberSearch(trimmed);
 
     if (pathname === "/search") {
-      startTransition(() => router.replace(target, { scroll: false }));
-      emitSearchQuery(trimmed);
+      window.history.replaceState(null, "", target);
+      emitSearchQuery(trimmed, { force: true });
       return;
     }
 

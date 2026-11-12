@@ -1,6 +1,7 @@
 "use client";
 
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useSearchParams } from "next/navigation";
 import {
   startTransition,
   useCallback,
@@ -85,11 +86,13 @@ export function SearchResultsView({
   initialData,
 }: {
   initialQuery: string;
-  initialData: SearchResults;
+  initialData?: SearchResults;
 }) {
   const [query, setQuery] = useState(initialQuery);
-  const [data, setData] = useState(initialData);
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [data, setData] = useState(() => initialData ?? emptyResults());
+  const [status, setStatus] = useState<"idle" | "loading" | "error">(
+    initialQuery && !initialData ? "loading" : "idle",
+  );
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState(false);
   const [exhausted, setExhausted] = useState(false);
@@ -97,8 +100,10 @@ export function SearchResultsView({
   const [previousInitialQuery, setPreviousInitialQuery] =
     useState(initialQuery);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() ?? "";
 
-  const loadedQueryRef = useRef(initialQuery);
+  const loadedQueryRef = useRef(initialData ? initialQuery : "");
   const abortRef = useRef<AbortController | null>(null);
   const moreAbortRef = useRef<AbortController | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -108,19 +113,20 @@ export function SearchResultsView({
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
     setQuery(initialQuery);
-    setData(initialData);
-    setStatus("idle");
+    setData(initialData ?? emptyResults());
+    setStatus(initialQuery && !initialData ? "loading" : "idle");
     setIsLoadingMore(false);
     setMoreError(false);
     setExhausted(false);
   }
 
   useEffect(() => {
+    if (!initialData) return;
     loadedQueryRef.current = initialQuery;
     if (initialQuery) {
       writeCache(initialQuery, initialData);
     }
-  }, [initialQuery, initialData]);
+  }, [initialData, initialQuery]);
 
   const applyData = useCallback(
     (nextQuery: string, nextData: SearchResults) => {
@@ -219,6 +225,17 @@ export function SearchResultsView({
     [applyData],
   );
 
+  useEffect(() => {
+    if (!urlQuery) return;
+    if (urlQuery === loadedQueryRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      void load(urlQuery);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [load, urlQuery]);
+
   const hasMore =
     status === "idle" &&
     paginationReady &&
@@ -278,21 +295,13 @@ export function SearchResultsView({
     function handleQuery(event: Event) {
       const detail = (event as CustomEvent<SearchQueryDetail>).detail;
       if (!detail || typeof detail.query !== "string") return;
-      void load(detail.query);
-    }
-
-    function handlePopState() {
-      const next =
-        new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
-      void load(next, true);
+      void load(detail.query, detail.force ?? false);
     }
 
     window.addEventListener(SEARCH_QUERY_EVENT, handleQuery);
-    window.addEventListener("popstate", handlePopState);
 
     return () => {
       window.removeEventListener(SEARCH_QUERY_EVENT, handleQuery);
-      window.removeEventListener("popstate", handlePopState);
       abortRef.current?.abort();
       moreAbortRef.current?.abort();
       if (paginationTimerRef.current) {
@@ -319,19 +328,6 @@ export function SearchResultsView({
     observer.observe(node);
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, loadMore, moreError]);
-
-  useEffect(() => {
-    const urlQuery =
-      new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
-
-    if (urlQuery === initialQuery) return;
-
-    const timer = window.setTimeout(() => {
-      void load(urlQuery, true);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [initialQuery, load]);
 
   const rowVirtualizer = useWindowVirtualizer({
     count: data.results.length + (isLoadingMore ? 1 : 0),
