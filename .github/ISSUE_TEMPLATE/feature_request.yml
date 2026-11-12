@@ -1,0 +1,64 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Focus on the problem first, then the proposed
+        solution. Small, well-scoped features are easier to land.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the user need, not only the implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should npmsearch do? Include UI or behaviour details.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing workarounds, other tools, or simpler options.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - search
+        - package page
+        - README
+        - analytics
+        - keyboard / accessibility
+        - performance
+        - design
+        - routing
+        - docs
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: I checked that this is not already an open issue.
+          required: true
+        - label: This can be built without a new dependency (or the dependency is discussed).
+          required: false
+        - label: I am willing to work on this.
+          required: false
