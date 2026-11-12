@@ -27,6 +27,8 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/components/global-shortcuts.tsx` + `command-palette.tsx` — `/`, `Ctrl/Cmd+K`, arrows, Enter, Escape; native dialog palette.
 - `app/lib/keyboard.ts`, `keyboard-events.ts`, `recent-searches.ts`, `popular.ts` — shortcut guards and palette data.
 - `app/lib/readme.ts` + `readme-copy.tsx` — raw HTML sanitize, relative URL rewrite, Shiki, TOC, copy buttons.
+- `app/lib/readme-source.ts` — jsDelivr fallback when the registry omits the README.
+- `app/components/repo-stars.tsx` — header GitHub link with a cached star count.
 - `app/lib/analytics.ts` + `app/lib/semver.ts` — install-size crawl, dependency freshness, ESM/CJS/types detection.
 - `app/package/[name]` + `package-view.tsx`, `package-readme.tsx`, `package-analytics.tsx`, `package-history.tsx` — `/latest` shell with streamed README, analytics and history; `app/[...pkg]` adds `/<pkg>` and `/<pkg>@<version>`.
 - `app/components/link-preview.tsx` — global hover headline for links with `data-preview-*` attributes.
