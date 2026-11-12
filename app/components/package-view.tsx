@@ -6,13 +6,15 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { DownloadSparkline } from "@/app/components/download-sparkline";
+import { ChartFocusButton } from "@/app/components/chart-focus-button";
+import { DownloadChart } from "@/app/components/download-chart";
 import { InstallBlock } from "@/app/components/install-block";
 import { MetaStrip } from "@/app/components/meta-strip";
 import { PackageAnalyticsRail } from "@/app/components/package-analytics";
 import { PackageHistoryRail } from "@/app/components/package-history";
 import { PackageReadme } from "@/app/components/package-readme";
 import { RailSection } from "@/app/components/rail-section";
+import { SectionLink } from "@/app/components/section-link";
 import { SkeletonBlock } from "@/app/components/skeleton";
 import { TabRail } from "@/app/components/tab-rail";
 import {
@@ -23,7 +25,7 @@ import {
   VersionBadge,
 } from "@/app/components/ui";
 import { detectModuleFormats } from "@/app/lib/analytics";
-import { formatBytes, formatRangeLabel } from "@/app/lib/format";
+import { formatBytes } from "@/app/lib/format";
 import {
   getPackageOverview,
   getPackageVersionOverview,
@@ -178,11 +180,11 @@ export async function PackageView({
 
   return (
     <AppShell>
-      <PageContainer className="py-6">
-        <main className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
-          <div className="min-w-0 space-y-4">
-            <div className="space-y-4">
-              <section id="overview" className="min-w-0 border-b border-border-subtle pb-5">
+      <PageContainer className="py-8 lg:py-10">
+        <main className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12">
+          <div className="min-w-0 space-y-6">
+            <div className="space-y-5">
+              <section id="overview" className="min-w-0 border-b border-border-subtle pb-6">
                 <p className="m-0 font-mono text-[11px] uppercase tracking-[0.08em] text-text-label">
                   package
                 </p>
@@ -193,7 +195,7 @@ export async function PackageView({
                   <VersionBadge version={latestVersion} />
                 </div>
 
-                <p className="mt-3 mb-0 max-w-[72ch] text-[14px] leading-7 text-text-secondary">
+                <p className="mt-3.5 mb-0 max-w-[72ch] text-[15px] leading-7 text-text-secondary">
                   {data.description?.trim() || "No description provided."}
                 </p>
 
@@ -248,7 +250,7 @@ export async function PackageView({
                   </a>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                   <FormatChip tone="green">
                     {nodeRange ? `node ${nodeRange}` : "node any"}
                   </FormatChip>
@@ -268,19 +270,22 @@ export async function PackageView({
 
               <MetaStrip items={metaItems} />
 
-              <div className="py-5">
+              <div>
                 <InstallBlock packageName={packageName} version={version} />
               </div>
 
               <section id="readme" className="min-w-0 pt-2">
-                <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-border-subtle pb-3">
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-border-subtle pb-4">
                   <SectionTitle
                     title="README"
                     subtitle="GitHub-flavored package documentation."
                   />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-brand-2">
-                    markdown
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-brand-2">
+                      markdown
+                    </span>
+                    <SectionLink id="readme" title="README" />
+                  </div>
                 </div>
 
                 <Suspense fallback={<ReadmeSkeleton />}>
@@ -303,32 +308,12 @@ export async function PackageView({
                   ? `Across all versions, last ${data.downloadTrend.length} days.`
                   : "Across all versions."
               }
+              action={<ChartFocusButton />}
             >
-              <p className="m-0 font-mono text-[11px] text-text-secondary">
-                {formatRangeLabel(
-                  data.downloadRange?.start,
-                  data.downloadRange?.end,
-                )}
-              </p>
-              <div className="mt-2 flex items-baseline gap-2">
-                <p className="m-0 font-mono text-[24px] leading-none font-semibold tracking-[-0.02em] text-brand-2">
-                  {typeof data.weeklyDownloads === "number"
-                    ? data.weeklyDownloads.toLocaleString("en-US")
-                    : "Unknown"}
-                </p>
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
-                  weekly
-                </span>
-              </div>
-              {typeof data.monthlyDownloads === "number" ? (
-                <p className="mt-1.5 mb-0 font-mono text-[11px] text-text-secondary">
-                  {data.monthlyDownloads.toLocaleString("en-US")} in 30 days
-                </p>
-              ) : null}
-              <DownloadSparkline
+              <DownloadChart
                 points={data.downloadTrend ?? []}
-                label={`${data.downloadTrend.length || 30}-day download trend`}
-                className="mt-3 h-14 w-full text-brand"
+                weekly={data.weeklyDownloads}
+                monthly={data.monthlyDownloads}
               />
             </RailSection>
 

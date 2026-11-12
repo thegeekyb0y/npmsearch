@@ -13,7 +13,7 @@ test("package analytics show downloads, install size and dependency health", asy
   const downloads = page.locator("#downloads");
   await expect(downloads).toContainText("weekly");
   await expect(
-    downloads.getByRole("img", { name: /download trend/ }),
+    downloads.getByRole("slider", { name: "Daily download trend" }),
   ).toBeVisible();
 
   const meta = page.locator("dl").first();

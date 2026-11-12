@@ -28,11 +28,6 @@ export function formatDate(value?: string) {
   }).format(date);
 }
 
-export function formatRangeLabel(start?: string, end?: string) {
-  if (!start || !end) return "Last 30 days";
-  return `${formatDate(start)} to ${formatDate(end)}`;
-}
-
 export function normalizeRepositoryUrl(url?: string) {
   if (!url) return undefined;
   return url.replace(/^git\+/, "").replace(/\.git$/, "");
