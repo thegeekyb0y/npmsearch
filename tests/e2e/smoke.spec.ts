@@ -15,6 +15,18 @@ test.describe("smoke", () => {
     await expect(page.locator("body")).toContainText("/ wk");
   });
 
+  test("home exposes social metadata", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      "content",
+      /\/og\.png$/,
+    );
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+      "content",
+      "summary_large_image",
+    );
+  });
+
   test("package route renders a package or a readable not-found state", async ({ page }) => {
     await page.goto("/package/react", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 45_000 });
