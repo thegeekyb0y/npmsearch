@@ -12,14 +12,14 @@ export function TabRail({
   return (
     <nav
       aria-label={label}
-      className="flex items-center gap-1 overflow-x-auto border-b border-border-subtle"
+      className="flex items-center gap-1 border-b border-border-subtle"
     >
       {items.map((item) => (
         <Link
           key={item.href}
           href={item.href}
           aria-current={item.active ? "page" : undefined}
-          className={`-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 font-mono text-[12px] transition-colors duration-150 ease-out ${
+          className={`-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-4 font-mono text-[12px] transition-colors duration-150 ease-out ${
             item.active
               ? "border-brand text-text-primary"
               : "border-transparent text-text-secondary hover:text-text-primary"

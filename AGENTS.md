@@ -32,6 +32,8 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/lib/analytics.ts` + `app/lib/semver.ts` — install-size crawl, dependency freshness, ESM/CJS/types detection.
 - `app/package/[name]` + `package-view.tsx`, `package-readme.tsx`, `package-analytics.tsx`, `package-history.tsx` — `/latest` shell with streamed README, analytics and history; `app/[...pkg]` adds `/<pkg>` and `/<pkg>@<version>`.
 - `app/components/link-preview.tsx` — global hover headline for links with `data-preview-*` attributes.
+- `app/components/download-chart.tsx` — interactive 30-day SVG trend with pointer and keyboard inspection.
+- `rail-section.tsx` + `section-link.tsx`, `show-more.tsx` — rail disclosures, deep links and collapsed overflow lists.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).

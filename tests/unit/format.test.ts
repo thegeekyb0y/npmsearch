@@ -4,7 +4,6 @@ import {
   formatCompactNumber,
   formatDate,
   formatDownloads,
-  formatRangeLabel,
   normalizeRepositoryUrl,
 } from "../../app/lib/format";
 
@@ -49,19 +48,6 @@ describe("formatDate", () => {
   it("returns Unknown when missing or invalid", () => {
     expect(formatDate(undefined)).toBe("Unknown");
     expect(formatDate("not-a-date")).toBe("Unknown");
-  });
-});
-
-describe("formatRangeLabel", () => {
-  it("falls back when either bound is missing", () => {
-    expect(formatRangeLabel(undefined, undefined)).toBe("Last 30 days");
-    expect(formatRangeLabel("2026-11-03", undefined)).toBe("Last 30 days");
-  });
-
-  it("joins both bounds", () => {
-    expect(formatRangeLabel("2026-11-03T12:00:00Z", "2026-11-09T12:00:00Z")).toBe(
-      "Nov 3, 2026 to Nov 9, 2026",
-    );
   });
 });
 

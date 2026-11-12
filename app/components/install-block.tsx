@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, Copy } from "lucide-react";
 import {
   useEffect,
@@ -7,15 +8,61 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 const MANAGERS = [
-  { id: "npm", label: "npm", build: (name: string) => `npm install ${name}` },
-  { id: "pnpm", label: "pnpm", build: (name: string) => `pnpm add ${name}` },
-  { id: "yarn", label: "yarn", build: (name: string) => `yarn add ${name}` },
-  { id: "bun", label: "bun", build: (name: string) => `bun add ${name}` },
+  {
+    id: "npm",
+    label: "npm",
+    monogram: "n",
+    tone: "bg-[#cb3837] text-white",
+    build: (name: string) => `npm install ${name}`,
+  },
+  {
+    id: "pnpm",
+    label: "pnpm",
+    monogram: "p",
+    tone: "bg-[#f9ad00] text-[#1a1a1a]",
+    build: (name: string) => `pnpm add ${name}`,
+  },
+  {
+    id: "yarn",
+    label: "yarn",
+    monogram: "y",
+    tone: "bg-[#2c8ebb] text-white",
+    build: (name: string) => `yarn add ${name}`,
+  },
+  {
+    id: "bun",
+    label: "bun",
+    monogram: "b",
+    tone: "bg-[#f3e9d8] text-[#1a1a1a]",
+    build: (name: string) => `bun add ${name}`,
+  },
 ] as const;
 
 type ManagerId = (typeof MANAGERS)[number]["id"];
+
+const MENU_HEIGHT = 4 * 36 + 8;
+const LISTBOX_ID = "package-manager-menu";
+
+type MenuPosition = {
+  top: number;
+  left: number;
+  width: number;
+  placement: "top" | "bottom";
+};
+
+function ManagerIcon({ manager }: { manager: (typeof MANAGERS)[number] }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] text-[9px] leading-none font-semibold uppercase ${manager.tone}`}
+    >
+      {manager.monogram}
+    </span>
+  );
+}
 
 export function InstallBlock({
   packageName,
@@ -27,8 +74,10 @@ export function InstallBlock({
   const [manager, setManager] = useState<ManagerId>("npm");
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const [position, setPosition] = useState<MenuPosition | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
 
   const selectedIndex = Math.max(
     MANAGERS.findIndex((entry) => entry.id === manager),
@@ -51,6 +100,10 @@ export function InstallBlock({
       setOpen(false);
     }
 
+    function handleScroll() {
+      setOpen(false);
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       setOpen(false);
@@ -59,36 +112,109 @@ export function InstallBlock({
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
     };
   }, [open]);
 
-  function focusOption(index: number) {
-    menuRef.current
-      ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
-      [index]?.focus();
-  }
+  useEffect(() => {
+    if (!open) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      menuRef.current?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   function openMenu() {
-    setOpen(true);
-    window.requestAnimationFrame(() => {
-      menuRef.current
-        ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
-        [selectedIndex]?.focus();
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const width = Math.max(rect.width, 132);
+    const fitsBelow = rect.bottom + MENU_HEIGHT + 12 < window.innerHeight;
+    const placement = fitsBelow ? "bottom" : "top";
+
+    setPosition({
+      top:
+        placement === "top"
+          ? rect.top - MENU_HEIGHT - 4
+          : rect.bottom + 4,
+      left: Math.min(
+        Math.max(rect.right - width, 8),
+        window.innerWidth - width - 8,
+      ),
+      width,
+      placement,
     });
+    setHighlighted(selectedIndex);
+    setOpen(true);
   }
 
-  function closeMenu(restoreFocus = false) {
+  function closeMenu(focusTrigger = false) {
     setOpen(false);
-    if (restoreFocus) buttonRef.current?.focus();
+    if (focusTrigger) buttonRef.current?.focus();
   }
 
   function choose(id: ManagerId) {
     setManager(id);
     closeMenu(true);
+  }
+
+  function handleTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (open) return;
+
+    if (
+      event.key === "ArrowDown" ||
+      event.key === "ArrowUp" ||
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+      event.preventDefault();
+      openMenu();
+    }
+  }
+
+  function handleMenuKeyDown(event: ReactKeyboardEvent<HTMLUListElement>) {
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        setHighlighted((index) => (index + 1) % MANAGERS.length);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        setHighlighted(
+          (index) => (index - 1 + MANAGERS.length) % MANAGERS.length,
+        );
+        break;
+      case "Home":
+        event.preventDefault();
+        setHighlighted(0);
+        break;
+      case "End":
+        event.preventDefault();
+        setHighlighted(MANAGERS.length - 1);
+        break;
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        choose(MANAGERS[highlighted].id);
+        break;
+      case "Escape":
+        event.preventDefault();
+        closeMenu(true);
+        break;
+      case "Tab":
+        event.preventDefault();
+        closeMenu(true);
+        break;
+    }
   }
 
   async function handleCopy() {
@@ -101,45 +227,12 @@ export function InstallBlock({
     }
   }
 
-  function handleOptionKeyDown(
-    event: ReactKeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) {
-    switch (event.key) {
-      case "ArrowDown":
-        event.preventDefault();
-        focusOption(Math.min(index + 1, MANAGERS.length - 1));
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        focusOption(Math.max(index - 1, 0));
-        break;
-      case "Home":
-        event.preventDefault();
-        focusOption(0);
-        break;
-      case "End":
-        event.preventDefault();
-        focusOption(MANAGERS.length - 1);
-        break;
-      case "Enter":
-      case " ":
-        event.preventDefault();
-        choose(MANAGERS[index].id);
-        break;
-      case "Escape":
-        event.preventDefault();
-        closeMenu(true);
-        break;
-      case "Tab":
-        closeMenu();
-        break;
-    }
-  }
-
   return (
     <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-border-subtle bg-surface-code py-2 pr-2 pl-4">
-      <span aria-hidden="true" className="shrink-0 font-mono text-[13px] text-brand">
+      <span
+        aria-hidden="true"
+        className="shrink-0 font-mono text-[13px] text-brand"
+      >
         $
       </span>
       <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-[13px] text-text-primary">
@@ -162,74 +255,104 @@ export function InstallBlock({
         )}
       </button>
 
-      <div className="relative shrink-0">
-        <button
-          ref={buttonRef}
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls="package-manager-menu"
-          onClick={() => (open ? closeMenu() : openMenu())}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-              event.preventDefault();
-              openMenu();
-            }
-          }}
-          className={`inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius-sm)] border bg-transparent py-1 pr-2 pl-2 font-mono text-[12px] transition-colors duration-150 ease-out ${
-            open
-              ? "border-brand text-text-primary"
-              : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? LISTBOX_ID : undefined}
+        onClick={() => (open ? closeMenu() : openMenu())}
+        onKeyDown={handleTriggerKeyDown}
+        className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] border bg-transparent py-1 pr-2 pl-2 font-mono text-[12px] transition-colors duration-150 ease-out ${
+          open
+            ? "border-brand text-text-primary"
+            : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
+        }`}
+      >
+        <ManagerIcon manager={selected} />
+        {selected.label}
+        <ChevronDown
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 text-text-muted transition-transform duration-150 ease-out ${
+            open ? "rotate-180" : ""
           }`}
-        >
-          {selected.label}
-          <ChevronDown
-            aria-hidden="true"
-            className={`h-3.5 w-3.5 text-text-muted transition-transform duration-150 ease-out ${
-              open ? "rotate-180" : ""
-            }`}
-            strokeWidth={1.8}
-          />
-        </button>
+          strokeWidth={1.8}
+        />
+      </button>
 
-        {open ? (
-          <div
-            ref={menuRef}
-            id="package-manager-menu"
-            role="listbox"
-            aria-label="Package manager"
-            className="absolute top-full right-0 z-50 mt-1 w-32 rounded-[var(--radius-sm)] border border-border-strong bg-surface-raised p-1"
-          >
-            {MANAGERS.map((entry, index) => {
-              const isSelected = entry.id === manager;
-
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
+      {typeof document !== "undefined"
+        ? createPortal(
+            <AnimatePresence>
+              {open && position ? (
+                <motion.ul
+                  key="package-manager-menu"
+                  ref={menuRef}
+                  id={LISTBOX_ID}
+                  role="listbox"
+                  aria-label="Package manager"
                   tabIndex={-1}
-                  onClick={() => choose(entry.id)}
-                  onKeyDown={(event) => handleOptionKeyDown(event, index)}
-                  className={`flex min-h-9 w-full items-center justify-between rounded-[var(--radius-xs)] px-2 text-left font-mono text-[12px] outline-none transition-colors duration-150 ease-out hover:bg-surface-hover hover:text-text-primary focus-visible:bg-[var(--accent-soft-bg)] focus-visible:text-brand ${
-                    isSelected ? "text-text-primary" : "text-text-secondary"
-                  }`}
+                  aria-activedescendant={`${LISTBOX_ID}-${MANAGERS[highlighted].id}`}
+                  onKeyDown={handleMenuKeyDown}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.98,
+                    y: position.placement === "top" ? 4 : -4,
+                  }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.14, ease: "easeOut" }}
+                  style={{
+                    position: "fixed",
+                    top: position.top,
+                    left: position.left,
+                    width: position.width,
+                    zIndex: 70,
+                    transformOrigin:
+                      position.placement === "top"
+                        ? "bottom right"
+                        : "top right",
+                  }}
+                  className="overflow-hidden rounded-[var(--radius-sm)] border border-border-strong bg-surface-raised p-1 outline-none"
                 >
-                  {entry.label}
-                  {isSelected ? (
-                    <Check
-                      aria-hidden="true"
-                      className="h-3 w-3 text-brand"
-                      strokeWidth={1.8}
-                    />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
+                  {MANAGERS.map((entry, index) => {
+                    const isSelected = entry.id === manager;
+                    const isHighlighted = index === highlighted;
+
+                    return (
+                      <li
+                        key={entry.id}
+                        id={`${LISTBOX_ID}-${entry.id}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => choose(entry.id)}
+                        onMouseEnter={() => setHighlighted(index)}
+                        className={`flex min-h-9 cursor-pointer items-center gap-2 rounded-[var(--radius-xs)] px-2 font-mono text-[12px] transition-colors duration-150 ease-out ${
+                          isSelected ? "text-text-primary" : "text-text-secondary"
+                        } ${
+                          isHighlighted
+                            ? "bg-surface-hover text-text-primary"
+                            : ""
+                        }`}
+                      >
+                        <ManagerIcon manager={entry} />
+                        <span>{entry.label}</span>
+                        {isSelected ? (
+                          <Check
+                            aria-hidden="true"
+                            className="ms-auto h-3 w-3 text-brand"
+                            strokeWidth={2}
+                          />
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </motion.ul>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

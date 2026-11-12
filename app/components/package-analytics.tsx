@@ -1,8 +1,52 @@
 import Link from "next/link";
 import { getPackageAnalytics } from "@/app/lib/analytics";
 import { formatBytes } from "@/app/lib/format";
-import type { LatestVersionInfo } from "@/app/lib/types";
+import type { DependencyStatus, LatestVersionInfo } from "@/app/lib/types";
 import { RailSection } from "./rail-section";
+import { ShowMore } from "./show-more";
+
+function DependencyRow({ dependency }: { dependency: DependencyStatus }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border-subtle py-2.5 last:border-b-0">
+      <div className="min-w-0">
+        <Link
+          href={`/package/${encodeURIComponent(dependency.name)}`}
+          data-preview-title={dependency.name}
+          data-preview-subtitle={
+            dependency.latest
+              ? `${dependency.range} → ${dependency.latest}`
+              : dependency.range
+          }
+          data-preview-meta={dependency.outdated ? "outdated" : undefined}
+          className="block truncate font-mono text-[12px] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
+        >
+          {dependency.name}
+        </Link>
+        <p className="mt-0.5 mb-0 truncate font-mono text-[10px] text-text-muted">
+          {dependency.range}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        {dependency.outdated && dependency.latest ? (
+          <span className="inline-flex items-center rounded-[var(--radius-xs)] border border-[var(--accent-soft-border)] bg-[var(--accent-soft-bg)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
+            outdated
+          </span>
+        ) : null}
+        {dependency.latest ? (
+          <p className="mt-0.5 mb-0 inline-flex items-center gap-1 font-mono text-[10px] text-text-secondary">
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full ${
+                dependency.outdated ? "bg-brand" : "bg-accent-green"
+              }`}
+            />
+            {dependency.latest}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export async function PackageAnalyticsRail({
   packageName,
@@ -16,6 +60,8 @@ export async function PackageAnalyticsRail({
   if (!analytics) return null;
 
   const install = analytics.installSize;
+  const visibleDependencies = analytics.dependencies.slice(0, 5);
+  const otherDependencies = analytics.dependencies.slice(5);
 
   return (
     <>
@@ -46,55 +92,18 @@ export async function PackageAnalyticsRail({
           }
         >
           <div>
-            {analytics.dependencies.slice(0, 20).map((dependency) => (
-              <div
-                key={dependency.name}
-                className="flex items-start justify-between gap-3 border-b border-border-subtle py-2 last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <Link
-                    href={`/package/${encodeURIComponent(dependency.name)}`}
-                    data-preview-title={dependency.name}
-                    data-preview-subtitle={
-                      dependency.latest
-                        ? `${dependency.range} → ${dependency.latest}`
-                        : dependency.range
-                    }
-                    data-preview-meta={
-                      dependency.outdated ? "outdated" : undefined
-                    }
-                    className="block truncate font-mono text-[12px] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
-                  >
-                    {dependency.name}
-                  </Link>
-                  <p className="mt-0.5 mb-0 truncate font-mono text-[10px] text-text-secondary">
-                    {dependency.range}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {dependency.outdated && dependency.latest ? (
-                    <span className="inline-flex items-center rounded-[var(--radius-xs)] border border-[var(--accent-soft-border)] bg-[var(--accent-soft-bg)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
-                      outdated
-                    </span>
-                  ) : null}
-                  {dependency.latest ? (
-                    <p className="mt-0.5 mb-0 inline-flex items-center gap-1 font-mono text-[10px] text-text-secondary">
-                      <span
-                        aria-hidden="true"
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          dependency.outdated ? "bg-brand" : "bg-accent-green"
-                        }`}
-                      />
-                      {dependency.latest}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+            {visibleDependencies.map((dependency) => (
+              <DependencyRow key={dependency.name} dependency={dependency} />
             ))}
-            {analytics.dependencies.length > 20 ? (
-              <p className="mt-2 mb-0 font-mono text-[10px] text-text-secondary">
-                +{analytics.dependencies.length - 20} more
-              </p>
+            {otherDependencies.length > 0 ? (
+              <ShowMore label={`Show ${otherDependencies.length} more`}>
+                {otherDependencies.map((dependency) => (
+                  <DependencyRow
+                    key={dependency.name}
+                    dependency={dependency}
+                  />
+                ))}
+              </ShowMore>
             ) : null}
           </div>
         </RailSection>
