@@ -1,7 +1,12 @@
 "use client";
 
 import { Check, ChevronDown, Copy } from "lucide-react";
-import { useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 const MANAGERS = [
   { id: "npm", label: "npm", build: (name: string) => `npm install ${name}` },
@@ -21,9 +26,70 @@ export function InstallBlock({
 }) {
   const [manager, setManager] = useState<ManagerId>("npm");
   const [copied, setCopied] = useState(false);
-  const selected = MANAGERS.find((entry) => entry.id === manager) ?? MANAGERS[0];
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const selectedIndex = Math.max(
+    MANAGERS.findIndex((entry) => entry.id === manager),
+    0,
+  );
+  const selected = MANAGERS[selectedIndex];
   const target = version ? `${packageName}@${version}` : packageName;
   const command = selected.build(target);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) return;
+      if (menuRef.current?.contains(target)) return;
+      if (buttonRef.current?.contains(target)) return;
+
+      setOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  function focusOption(index: number) {
+    menuRef.current
+      ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
+      [index]?.focus();
+  }
+
+  function openMenu() {
+    setOpen(true);
+    window.requestAnimationFrame(() => {
+      menuRef.current
+        ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
+        [selectedIndex]?.focus();
+    });
+  }
+
+  function closeMenu(restoreFocus = false) {
+    setOpen(false);
+    if (restoreFocus) buttonRef.current?.focus();
+  }
+
+  function choose(id: ManagerId) {
+    setManager(id);
+    closeMenu(true);
+  }
 
   async function handleCopy() {
     try {
@@ -32,6 +98,42 @@ export function InstallBlock({
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
       setCopied(false);
+    }
+  }
+
+  function handleOptionKeyDown(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        focusOption(Math.min(index + 1, MANAGERS.length - 1));
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        focusOption(Math.max(index - 1, 0));
+        break;
+      case "Home":
+        event.preventDefault();
+        focusOption(0);
+        break;
+      case "End":
+        event.preventDefault();
+        focusOption(MANAGERS.length - 1);
+        break;
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        choose(MANAGERS[index].id);
+        break;
+      case "Escape":
+        event.preventDefault();
+        closeMenu(true);
+        break;
+      case "Tab":
+        closeMenu();
+        break;
     }
   }
 
@@ -61,23 +163,72 @@ export function InstallBlock({
       </button>
 
       <div className="relative shrink-0">
-        <select
-          aria-label="Package manager"
-          value={manager}
-          onChange={(event) => setManager(event.target.value as ManagerId)}
-          className="min-h-11 appearance-none rounded-[var(--radius-sm)] border border-border-subtle bg-transparent py-1 pr-7 pl-2 font-mono text-[12px] text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:text-text-primary focus:border-brand"
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls="package-manager-menu"
+          onClick={() => (open ? closeMenu() : openMenu())}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              openMenu();
+            }
+          }}
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius-sm)] border bg-transparent py-1 pr-2 pl-2 font-mono text-[12px] transition-colors duration-150 ease-out ${
+            open
+              ? "border-brand text-text-primary"
+              : "border-border-subtle text-text-secondary hover:border-border-strong hover:text-text-primary"
+          }`}
         >
-          {MANAGERS.map((entry) => (
-            <option key={entry.id} value={entry.id} className="bg-surface text-text-primary">
-              {entry.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted"
-          strokeWidth={1.8}
-        />
+          {selected.label}
+          <ChevronDown
+            aria-hidden="true"
+            className={`h-3.5 w-3.5 text-text-muted transition-transform duration-150 ease-out ${
+              open ? "rotate-180" : ""
+            }`}
+            strokeWidth={1.8}
+          />
+        </button>
+
+        {open ? (
+          <div
+            ref={menuRef}
+            id="package-manager-menu"
+            role="listbox"
+            aria-label="Package manager"
+            className="absolute top-full right-0 z-50 mt-1 w-32 rounded-[var(--radius-sm)] border border-border-strong bg-surface-raised p-1"
+          >
+            {MANAGERS.map((entry, index) => {
+              const isSelected = entry.id === manager;
+
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={-1}
+                  onClick={() => choose(entry.id)}
+                  onKeyDown={(event) => handleOptionKeyDown(event, index)}
+                  className={`flex min-h-9 w-full items-center justify-between rounded-[var(--radius-xs)] px-2 text-left font-mono text-[12px] outline-none transition-colors duration-150 ease-out hover:bg-surface-hover hover:text-text-primary focus-visible:bg-[var(--accent-soft-bg)] focus-visible:text-brand ${
+                    isSelected ? "text-text-primary" : "text-text-secondary"
+                  }`}
+                >
+                  {entry.label}
+                  {isSelected ? (
+                    <Check
+                      aria-hidden="true"
+                      className="h-3 w-3 text-brand"
+                      strokeWidth={1.8}
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </div>
   );
