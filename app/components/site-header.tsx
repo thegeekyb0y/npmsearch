@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CommandPaletteTrigger } from "./command-palette-trigger";
 import { HeaderBackdrop } from "./header-backdrop";
+import { RepoStars, RepoStarsFallback } from "./repo-stars";
 import { SearchBox, SearchBoxFallback } from "./search-box";
 
 export function SiteHeader() {
@@ -36,16 +37,9 @@ export function SiteHeader() {
           className="ml-auto hidden shrink-0 items-center gap-4 font-mono text-[11px] text-text-secondary md:flex"
         >
           <CommandPaletteTrigger />
-          <Link
-            href="/search"
-            className="transition-colors duration-150 ease-out hover:text-brand"
-          >
-            search
-          </Link>
-          <span aria-hidden="true" className="text-border-strong">
-            |
-          </span>
-          <span>registry.npmjs.org</span>
+          <Suspense fallback={<RepoStarsFallback />}>
+            <RepoStars />
+          </Suspense>
         </nav>
       </div>
     </header>
