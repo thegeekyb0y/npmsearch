@@ -12,6 +12,7 @@ import {
   rehypeRewriteReadmeUrls,
 } from "@/app/lib/readme";
 import { getPackageExtras } from "@/app/lib/package-page";
+import { getReadmeFallback } from "@/app/lib/readme-source";
 import { ReadmeCopy } from "./readme-copy";
 
 const COMMON_LANGUAGES = [
@@ -138,14 +139,26 @@ const markdownComponents: Components = {
 
 export async function PackageReadme({
   packageName,
+  version,
   repositoryUrl,
 }: {
   packageName: string;
+  version?: string;
   repositoryUrl?: string;
 }) {
   const data = await getPackageExtras(packageName);
 
-  const readme = data?.readme;
+  let readme = data?.readme?.trim() || undefined;
+  let readmeTruncated = data?.readmeTruncated ?? false;
+
+  if (!readme && version) {
+    const fallback = await getReadmeFallback(packageName, version);
+    if (fallback) {
+      readme = fallback.readme;
+      readmeTruncated = fallback.truncated;
+    }
+  }
+
   const toc = extractHeadings(readme);
   const rendered = readme?.trim()
     ? await MarkdownAsync({
@@ -197,7 +210,7 @@ export async function PackageReadme({
         </details>
       ) : null}
 
-      {data?.readmeTruncated ? (
+      {readmeTruncated ? (
         <p className="mb-4 text-[11px] text-text-secondary">
           README truncated to 256 KB.
         </p>

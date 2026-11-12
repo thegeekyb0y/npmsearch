@@ -263,6 +263,7 @@ export async function PackageView({
                 <Suspense fallback={<ReadmeSkeleton />}>
                   <PackageReadme
                     packageName={packageName}
+                    version={latestVersion}
                     repositoryUrl={repositoryUrl}
                   />
                 </Suspense>
