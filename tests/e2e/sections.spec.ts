@@ -34,6 +34,30 @@ test("versions and dependencies hide extra rows behind a disclosure", async ({
   );
 });
 
+test("version rows open pinned package pages", async ({ page }) => {
+  await page.goto("/debug", { waitUntil: "domcontentloaded" });
+  await expect(
+    page.getByRole("heading", { level: 1, name: "debug", exact: true }),
+  ).toBeVisible({ timeout: 45_000 });
+
+  const versions = page.locator("#versions");
+  await expect(versions).toBeVisible({ timeout: 60_000 });
+
+  const first = versions.locator('a[href^="/debug@"]').first();
+  await expect(first).toBeVisible();
+
+  const href = await first.getAttribute("href");
+  const version = (await first.textContent())?.trim() ?? "";
+
+  expect(href).toBeTruthy();
+
+  await first.click();
+  await expect(page).toHaveURL(
+    new RegExp(`${(href ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+  );
+  await expect(page.getByText(`v${version}`, { exact: true })).toBeVisible();
+});
+
 test("section link copies a deep link", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 

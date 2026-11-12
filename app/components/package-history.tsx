@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CircleAlert, GitFork, Star, Users } from "lucide-react";
 import { formatCompactNumber, formatDate } from "@/app/lib/format";
 import { getPackageExtras } from "@/app/lib/package-page";
@@ -8,22 +9,27 @@ import { ShowMore } from "./show-more";
 function VersionRow({
   entry,
   latestVersion,
+  packageName,
 }: {
   entry: RecentVersion;
   latestVersion: string;
+  packageName: string;
 }) {
+  const href = `/${packageName}@${encodeURIComponent(entry.version)}`;
+
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border-subtle py-2.5 last:border-b-0">
       <div className="min-w-0">
-        <p
-          className={`truncate font-mono text-[12px] ${
+        <Link
+          href={href}
+          className={`inline-flex min-h-6 items-center font-mono text-[12px] transition-colors duration-150 ease-out hover:text-brand ${
             entry.version === latestVersion
               ? "text-text-primary"
               : "text-text-secondary"
           }`}
         >
           {entry.version}
-        </p>
+        </Link>
         {entry.tag ? (
           <p className="mt-0.5 mb-0 font-mono text-[9px] uppercase tracking-[0.08em] text-brand-2">
             {entry.tag}
@@ -99,6 +105,7 @@ export async function PackageHistoryRail({
                 key={entry.version}
                 entry={entry}
                 latestVersion={data.latestVersion}
+                packageName={packageName}
               />
             ))}
             {otherVersions.length > 0 ? (
@@ -108,6 +115,7 @@ export async function PackageHistoryRail({
                     key={entry.version}
                     entry={entry}
                     latestVersion={data.latestVersion}
+                    packageName={packageName}
                   />
                 ))}
               </ShowMore>

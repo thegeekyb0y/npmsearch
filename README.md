@@ -34,20 +34,31 @@ keeps the interface quiet, and spends its complexity budget on speed:
 - typing never triggers a server render per keystroke
 - search results are **virtualized** up to 1,000 rows
 
-## How it differs from the npm website
+## How it compares
 
-| | npmjs.com | npmsearch |
+| Capability | npmjs.com | npmsearch |
 | --- | --- | --- |
-| Purpose | Publish, manage, discover | Inspect packages fast |
-| First paint | Page-level data fetch | Small manifest shell + streamed sections |
-| Search | Full page navigation | Instant, abortable, URL-synced |
-| Keyboard | Standard links | `/`, `Cmd/Ctrl+K`, arrows, Enter, Escape |
-| Data density | Marketing and account chrome | Metadata, versions, deps, README |
-| Compatibility | Limited | ESM / CJS / types, node range |
-| Install size | Not shown | Estimated across a bounded dependency graph |
-| Dependency health | Not shown | Direct deps compared with published latest |
-| README | npm renderer | Sanitized, Shiki-highlighted, TOC, copy |
-| Open source | — | MIT, documented architecture, contribution templates |
+| Package search | ✅ | ✅ |
+| Package details & README | ✅ | ✅ |
+| Version history | ✅ | ✅ |
+| Direct dependencies | ✅ | ✅ |
+| Download charts | ✅ | ✅ |
+| Dark mode | ✅ | ✅ |
+| TypeScript types indicator | ✅ | ✅ |
+| **Install size estimate** | ❌ | ✅ |
+| **Outdated dependency flags** | ❌ | ✅ |
+| **ESM / CJS / types badges** | ❌ | ✅ |
+| **Interactive, keyboard-inspectable chart** | ❌ | ✅ |
+| **Keyboard navigation & command palette** | ❌ | ✅ |
+| **Streamed package shell** | ❌ | ✅ |
+| **README TOC + copy buttons** | ❌ | ✅ |
+| **Missing-README fallback** | ❌ | ✅ |
+| **Short routes (`/react`, `/react@19`)** | ❌ | ✅ |
+| **Open source** | ❌ | ✅ |
+| Publishing, orgs, billing | ✅ | ➖ |
+
+npmsearch is intentionally read-only: it is an explorer, not a publishing
+dashboard.
 
 ## Features
 
@@ -84,59 +95,12 @@ flowchart LR
   R --> J[jsDelivr fallback]
 ```
 
-```mermaid
-sequenceDiagram
-  participant U as Browser
-  participant N as Next.js
-  participant R as npm registry
-  participant C as Upstash
+The shell is built from `/<pkg>/latest` + downloads. README, analytics and
+history stream in separate Suspense boundaries; the full packument is shared
+through React `cache()`. The full engineering story, diagrams and tradeoffs live
+at [`/how-it-works`](https://npmsearch121.vercel.app/how-it-works).
 
-  U->>N: GET /package/axios
-  N->>R: /axios/latest + downloads
-  R-->>N: small manifests
-  N-->>U: streamed shell
-  N->>R: /axios (full packument)
-  R-->>N: README + versions + maintainers
-  N-->>U: streamed README + rails
-  N->>C: write cache entries
-```
-
-### 1. A small shell, then streamed sections
-
-`getPackageOverview()` fetches `/<pkg>/latest` and the downloads range in
-parallel. The header, metadata, install block and downloads render immediately.
-
-README, install size, dependencies, versions, maintainers and GitHub stats live
-in their own Suspense boundaries. They stream in after the shell. The full
-packument is shared between the README and history sections through React
-`cache()`.
-
-### 2. Stale-while-revalidate
-
-Every cache value is `{ data, cachedAt }` under a versioned key. A request
-serves a fresh entry directly, serves a stale entry immediately and schedules a
-background refresh with `after()`, or fetches on a miss. One refresh runs per key
-per process. Cache failures are fail-open.
-
-### 3. Search without server churn
-
-Typing updates the URL with `history.replaceState` and calls `/api/search`.
-`AbortController` cancels the previous request. A 60-second client cache serves
-repeat queries. A failed server render never replaces client results with a
-fatal panel.
-
-### 4. A README pipeline that trusts nothing
-
-Registry README → jsDelivr fallback when empty → `rehype-raw` → custom
-`rehype-sanitize` → slugged headings and TOC → server Shiki → copy buttons. No
-scripts, iframes, event handlers or package HTML reach the DOM unsanitized.
-
-### 5. Bounded analytics
-
-Install size is an estimate from `/<pkg>/latest` manifests: depth 3, max 60
-packages, 8 concurrent requests, 2-second budget. Dependency freshness compares
-the declared range with the published latest version. Unsupported protocols are
-never flagged.
+[![npmsearch engineering page](public/readme-engineering.png)](https://npmsearch121.vercel.app/how-it-works)
 
 ## Performance
 
@@ -150,11 +114,6 @@ never flagged.
 | Cache TTLs | search 60 s/1 h · package 5 m/24 h · analytics 1 h/24 h · README 1 d/7 d |
 | Home route | static, daily revalidation for the GitHub star count |
 | Client search cache | 60 s, 20 entries |
-
-The full engineering story, diagrams and tradeoffs live at
-[`/how-it-works`](https://npmsearch121.vercel.app/how-it-works).
-
-[![npmsearch engineering page](public/readme-engineering.png)](https://npmsearch121.vercel.app/how-it-works)
 
 ## Tech stack
 

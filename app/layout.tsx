@@ -6,6 +6,11 @@ import { LinkPreview } from "./components/link-preview";
 import { MotionProvider } from "./components/motion-provider";
 import { SiteFooter } from "./components/site-footer";
 import { SiteHeader } from "./components/site-header";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+} from "./lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,11 +24,33 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "npmSearch",
-    template: "%s | npmSearch",
+    default: "npmsearch",
+    template: "%s | npmsearch",
   },
-  description: "A fast, minimal browser for the npm registry.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: "npmsearch — the npm registry without the noise",
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "npmsearch — a fast, keyboard-first npm registry explorer",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "npmsearch — the npm registry without the noise",
+    description: SITE_DESCRIPTION,
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
