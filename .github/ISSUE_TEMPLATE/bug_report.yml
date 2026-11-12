@@ -1,0 +1,63 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include a reproduction so we can fix
+        the right thing.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear, short description of the problem.
+      placeholder: Typing a query shows the error panel until I press Enter.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps, including the URL if possible.
+      placeholder: |
+        1. Open /search
+        2. Type "python"
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, viewport, and whether you use a preview deployment.
+      placeholder: Chrome 131, Windows 11, 1440px, production
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Console errors, network responses, or a screenshot.
+      render: text
+    validations:
+      required: false

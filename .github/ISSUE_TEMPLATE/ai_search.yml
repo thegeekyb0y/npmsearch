@@ -1,0 +1,80 @@
+name: AI package finder proposal
+description: Propose or shape the planned "describe a use case, get packages" feature.
+title: "ai: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The AI finder is planned but not built. The design principle is simple:
+        **the model plans the search, the registry remains the source of truth.**
+        Please include the use case, cost and privacy context below.
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What would someone type, and what should they get back?
+      placeholder: |
+        "I need a small date library with timezone support and no dependencies."
+        -> three concrete packages, why each one fits, and a search query.
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example prompts
+      description: 2–5 realistic prompts.
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected output
+      description: Packages, reasons, search queries, links, or a comparison table?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider preference
+      description: The free-tier plan is the default. A provider key is required.
+      options:
+        - Groq free plan (gpt-oss-20b)
+        - Google Gemini free tier
+        - OpenAI
+        - Anthropic
+        - other / discuss
+    validations:
+      required: false
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: Cost and rate limits
+      description: Your expected request volume, caching, per-IP limits, and fallback behaviour.
+    validations:
+      required: false
+
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy
+      description: Are prompts retained? Should users see a notice? Any provider constraints?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Design principles
+      options:
+        - label: Model output must be validated and enriched from the npm registry.
+          required: true
+        - label: Hallucinated package names must be filtered out.
+          required: true
+        - label: The search UI should remain usable if the model or quota fails.
+          required: true
