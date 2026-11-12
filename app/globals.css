@@ -7,20 +7,20 @@
   --font-geist-sans: "Geist Sans", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
 
-  --background: #0b0d10;
-  --surface: #12151a;
-  --surface-code: #0e1116;
-  --surface-raised: #171b21;
-  --surface-hover: #11151a;
-  --surface-active: #1c2128;
-  --surface-overlay: rgb(11 13 16 / 0.96);
-  --border-subtle: #232831;
-  --border-strong: #343b46;
+  --background: #090b0e;
+  --surface: #10141a;
+  --surface-code: #0c1014;
+  --surface-raised: #171c24;
+  --surface-hover: #141920;
+  --surface-active: #1d232c;
+  --surface-overlay: #0d1117;
+  --border-subtle: #29313c;
+  --border-strong: #3c4654;
 
-  --text-primary: #f0f2f5;
-  --text-secondary: #aab2bf;
-  --text-muted: #5f6875;
-  --text-label: var(--text-secondary);
+  --text-primary: #f7f9fb;
+  --text-secondary: #c1c9d4;
+  --text-muted: #808b9b;
+  --text-label: #a9b3c1;
 
   --accent: #ff7a1a;
   --accent-hover: #e56a0c;
