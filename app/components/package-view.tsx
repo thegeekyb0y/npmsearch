@@ -30,9 +30,26 @@ import {
 } from "@/app/lib/registry";
 import type { MetaItem, TabItem } from "@/app/lib/types";
 
-function Chip({ children }: { children: ReactNode }) {
+const FORMAT_TONES = {
+  teal: "border-[var(--accent-teal-soft-border)] bg-[var(--accent-teal-soft-bg)] text-brand-2",
+  blue: "border-[var(--accent-blue-soft-border)] bg-[var(--accent-blue-soft-bg)] text-accent-blue",
+  green:
+    "border-[var(--accent-green-soft-border)] bg-[var(--accent-green-soft-bg)] text-accent-green",
+  violet:
+    "border-[var(--accent-violet-soft-border)] bg-[var(--accent-violet-soft-bg)] text-accent-violet",
+} as const;
+
+function FormatChip({
+  tone,
+  children,
+}: {
+  tone: keyof typeof FORMAT_TONES;
+  children: ReactNode;
+}) {
   return (
-    <span className="inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border border-border-strong px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+    <span
+      className={`inline-flex min-h-6 items-center rounded-[var(--radius-xs)] border px-2 font-mono text-[10px] uppercase tracking-[0.08em] ${FORMAT_TONES[tone]}`}
+    >
       {children}
     </span>
   );
@@ -196,7 +213,7 @@ export async function PackageView({
                         className="h-3.5 w-3.5 shrink-0 text-text-muted"
                         strokeWidth={1.8}
                       />
-                      <span className="max-w-[220px] truncate">
+                      <span className="link-underline max-w-[220px] truncate">
                         {repositoryLabel || "repository"}
                       </span>
                     </a>
@@ -213,7 +230,7 @@ export async function PackageView({
                         className="h-3.5 w-3.5 text-text-muted"
                         strokeWidth={1.8}
                       />
-                      homepage
+                      <span className="link-underline">homepage</span>
                     </a>
                   ) : null}
                   <a
@@ -227,17 +244,23 @@ export async function PackageView({
                       className="h-3.5 w-3.5 text-text-muted"
                       strokeWidth={1.8}
                     />
-                    npm
+                    <span className="link-underline">npm</span>
                   </a>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Chip>{nodeRange ? `node ${nodeRange}` : "node any"}</Chip>
-                  <Chip>{depsCount} deps</Chip>
-                  {formats?.esm ? <Chip>esm</Chip> : null}
-                  {formats?.cjs ? <Chip>cjs</Chip> : null}
-                  {formats?.types ? <Chip>types</Chip> : null}
-                  {repositoryUrl ? <Chip>open source</Chip> : null}
+                  <FormatChip tone="green">
+                    {nodeRange ? `node ${nodeRange}` : "node any"}
+                  </FormatChip>
+                  <FormatChip tone="blue">{depsCount} deps</FormatChip>
+                  {formats?.esm ? <FormatChip tone="teal">esm</FormatChip> : null}
+                  {formats?.cjs ? <FormatChip tone="blue">cjs</FormatChip> : null}
+                  {formats?.types ? (
+                    <FormatChip tone="green">types</FormatChip>
+                  ) : null}
+                  {repositoryUrl ? (
+                    <FormatChip tone="violet">open source</FormatChip>
+                  ) : null}
                 </div>
               </section>
 
@@ -255,7 +278,7 @@ export async function PackageView({
                     title="README"
                     subtitle="GitHub-flavored package documentation."
                   />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-secondary">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-brand-2">
                     markdown
                   </span>
                 </div>
@@ -329,9 +352,11 @@ export async function PackageView({
               </div>
               {formats ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {formats.esm ? <Chip>esm</Chip> : null}
-                  {formats.cjs ? <Chip>cjs</Chip> : null}
-                  {formats.types ? <Chip>types</Chip> : null}
+                  {formats.esm ? <FormatChip tone="teal">esm</FormatChip> : null}
+                  {formats.cjs ? <FormatChip tone="blue">cjs</FormatChip> : null}
+                  {formats.types ? (
+                    <FormatChip tone="green">types</FormatChip>
+                  ) : null}
                 </div>
               ) : null}
             </RailSection>

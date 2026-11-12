@@ -47,7 +47,8 @@ export function LinkPreview() {
 
     const rect = target.getBoundingClientRect();
     const width = Math.min(MAX_WIDTH, window.innerWidth - MARGIN * 2);
-    const placement = rect.top > 96 ? "top" : "bottom";
+    const placement =
+      rect.bottom + 110 < window.innerHeight ? "bottom" : "top";
 
     setPreview({
       title,

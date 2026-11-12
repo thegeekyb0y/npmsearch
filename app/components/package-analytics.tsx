@@ -78,7 +78,13 @@ export async function PackageAnalyticsRail({
                     </span>
                   ) : null}
                   {dependency.latest ? (
-                    <p className="mt-0.5 mb-0 font-mono text-[10px] text-text-secondary">
+                    <p className="mt-0.5 mb-0 inline-flex items-center gap-1 font-mono text-[10px] text-text-secondary">
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          dependency.outdated ? "bg-brand" : "bg-accent-green"
+                        }`}
+                      />
                       {dependency.latest}
                     </p>
                   ) : null}

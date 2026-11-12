@@ -25,8 +25,19 @@
   --accent: #ff7a1a;
   --accent-hover: #e56a0c;
   --accent-2: #5eead4;
+  --accent-blue: #7aa2ff;
+  --accent-green: #4ade80;
+  --accent-violet: #b6a4ff;
   --accent-soft-bg: rgb(255 122 26 / 0.1);
   --accent-soft-border: rgb(255 122 26 / 0.22);
+  --accent-teal-soft-bg: rgb(94 234 212 / 0.1);
+  --accent-teal-soft-border: rgb(94 234 212 / 0.24);
+  --accent-blue-soft-bg: rgb(122 162 255 / 0.1);
+  --accent-blue-soft-border: rgb(122 162 255 / 0.24);
+  --accent-green-soft-bg: rgb(74 222 128 / 0.1);
+  --accent-green-soft-border: rgb(74 222 128 / 0.24);
+  --accent-violet-soft-bg: rgb(182 164 255 / 0.1);
+  --accent-violet-soft-border: rgb(182 164 255 / 0.24);
   --success: #22c55e;
   --destructive: #ef4444;
   --destructive-soft-bg: rgb(239 68 68 / 0.1);
@@ -86,6 +97,9 @@
   --color-brand: var(--accent);
   --color-brand-hover: var(--accent-hover);
   --color-brand-2: var(--accent-2);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-green: var(--accent-green);
+  --color-accent-violet: var(--accent-violet);
   --color-success: var(--success);
   --color-destructive: var(--destructive);
   --font-sans: var(--font-geist-sans);
@@ -131,6 +145,28 @@
   position: sticky;
   top: 0;
   z-index: 40;
+}
+
+.link-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.link-underline::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+  left: 0;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.32;
+  transition: opacity var(--transition-fast);
+}
+
+.link-underline:hover::after,
+.link-underline:focus-visible::after {
+  opacity: 1;
 }
 
 @media (min-width: 1024px) {
