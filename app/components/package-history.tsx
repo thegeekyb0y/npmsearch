@@ -47,7 +47,7 @@ export async function PackageHistoryRail({
                     {entry.version}
                   </p>
                   {entry.tag ? (
-                    <p className="mt-0.5 mb-0 font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
+                    <p className="mt-0.5 mb-0 font-mono text-[9px] uppercase tracking-[0.08em] text-brand-2">
                       {entry.tag}
                     </p>
                   ) : null}

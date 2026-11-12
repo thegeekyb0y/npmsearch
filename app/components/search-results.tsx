@@ -443,8 +443,8 @@ export function SearchResultsView({
             search
           </p>
           <h1 className="m-0 font-mono text-[clamp(20px,4vw,28px)] leading-[1.2] font-semibold tracking-[-0.02em] text-text-primary">
-            <span className="text-brand">{countLabel}</span> packages for &quot;
-            {query}&quot;
+            <span className="text-brand">{countLabel}</span>{" "}
+            packages for &quot;{query}&quot;
           </h1>
           <p className="m-0 text-[12px] leading-5 text-text-secondary">
             Ranked by registry relevance · weekly downloads from npm

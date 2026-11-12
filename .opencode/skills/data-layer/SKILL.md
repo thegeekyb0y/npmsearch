@@ -14,6 +14,7 @@ All registry access lives in `app/lib/*` (start with `app/lib/registry.ts`). Pag
 | Package shell | `https://registry.npmjs.org/${encodeURIComponent(name)}/latest` (small; critical path) |
 | Pinned version | `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}` |
 | Package doc | `https://registry.npmjs.org/${encodeURIComponent(name)}` (full; README, versions, maintainers) |
+| README fallback | `https://cdn.jsdelivr.net/npm/${name}@${encodeURIComponent(version)}/README.md` (only when the registry `readme` is empty) |
 | Weekly downloads | `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}` |
 | 30-day trend | `https://api.npmjs.org/downloads/range/last-month/${encodeURIComponent(name)}` |
 
@@ -63,6 +64,7 @@ const downloadsKey = `${CACHE_VERSION}:downloads:${normalizePackageName(name)}`;
 | package | 5m | 24h |
 | overview | 5m | 24h |
 | analytics | 1h | 24h |
+| readme | 1d | 7d |
 | downloads | 5m | 24h |
 | github | 24h | 7d |
 

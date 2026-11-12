@@ -55,7 +55,7 @@ export default function HomePage() {
                   href={`/package/${pkg}`}
                   className="inline-flex min-h-11 items-center font-mono text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand"
                 >
-                  {pkg}
+                  <span className="link-underline">{pkg}</span>
                 </Link>
               </li>
             ))}

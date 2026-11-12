@@ -18,7 +18,8 @@ const README_FILES = [
   "README",
 ];
 
-const README_FETCH_TIMEOUT_MS = 4_000;
+const README_FETCH_TIMEOUT_MS = 3_000;
+const README_BUDGET_MS = 4_000;
 const MAX_DOWNLOAD_BYTES = 512_000;
 
 type CachedReadme = {
@@ -37,6 +38,7 @@ async function fetchReadmeFile(
   name: string,
   version: string,
   file: string,
+  timeoutMs: number,
 ): Promise<string | null> {
   let response: Response;
 
@@ -45,7 +47,7 @@ async function fetchReadmeFile(
       `https://cdn.jsdelivr.net/npm/${name}@${encodeURIComponent(version)}/${file}`,
       {
         headers: { Accept: "text/plain" },
-        signal: AbortSignal.timeout(README_FETCH_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
         cache: "no-store",
       },
     );
@@ -80,8 +82,18 @@ async function refreshReadmeFallback(
   version: string,
   cacheKey: string,
 ): Promise<ReadmeSource | null> {
+  const startedAt = Date.now();
+
   for (const file of README_FILES) {
-    const readme = await fetchReadmeFile(name, version, file);
+    const remaining = README_BUDGET_MS - (Date.now() - startedAt);
+    if (remaining <= 0) break;
+
+    const readme = await fetchReadmeFile(
+      name,
+      version,
+      file,
+      Math.min(README_FETCH_TIMEOUT_MS, remaining),
+    );
     if (!readme) continue;
 
     const truncated = readme.length > README_LIMIT;
