@@ -52,10 +52,14 @@ export function DownloadChart({
   points,
   weekly,
   monthly,
+  label = "Daily download trend",
+  accent,
 }: {
   points: DownloadPoint[];
   weekly?: number;
   monthly?: number;
+  label?: string;
+  accent?: string;
 }) {
   const values = useMemo(
     () => points.map((point) => point.downloads),
@@ -194,7 +198,7 @@ export function DownloadChart({
         id="download-chart"
         role="slider"
         tabIndex={0}
-        aria-label="Daily download trend"
+        aria-label={label}
         aria-orientation="horizontal"
         aria-valuemin={0}
         aria-valuemax={count - 1}
@@ -215,14 +219,23 @@ export function DownloadChart({
       >
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="h-full w-full text-brand-2"
+          className={`h-full w-full ${accent ? "" : "text-brand-2"}`}
+          style={accent ? { color: accent } : undefined}
           aria-hidden="true"
           preserveAspectRatio="none"
         >
           <defs>
             <linearGradient id="download-chart-fill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="rgb(94 234 212 / 0.18)" />
-              <stop offset="100%" stopColor="rgb(94 234 212 / 0)" />
+              <stop
+                offset="0%"
+                stopColor={accent ?? "rgb(94 234 212)"}
+                stopOpacity="0.18"
+              />
+              <stop
+                offset="100%"
+                stopColor={accent ?? "rgb(94 234 212)"}
+                stopOpacity="0"
+              />
             </linearGradient>
           </defs>
 
@@ -251,10 +264,11 @@ export function DownloadChart({
             />
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-brand bg-background"
+              className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] bg-background"
               style={{
                 left: `${(activeCoord.x / WIDTH) * 100}%`,
                 top: `${(activeCoord.y / HEIGHT) * 100}%`,
+                borderColor: accent ?? "var(--accent)",
               }}
             />
           </>

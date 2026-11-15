@@ -8,6 +8,7 @@ import {
   cacheSet,
   isExpired,
   isFresh,
+  downloadsCacheKey,
   overviewCacheKey,
   packageCacheKey,
   searchCacheKey,
@@ -617,6 +618,42 @@ export async function getPackageVersionOverview(
   }
 
   return refreshOverview(normalized, cacheKey, selector);
+}
+
+export async function getDownloadTrend(
+  name: string,
+): Promise<DownloadPoint[]> {
+  const normalized = normalizePackageName(name);
+
+  if (!isValidPackageName(normalized)) {
+    return [];
+  }
+
+  const cacheKey = downloadsCacheKey(normalized);
+  const entry = await cacheGetEntry<DownloadPoint[]>(cacheKey);
+
+  if (entry && !isExpired(entry, CACHE_HARD_TTL.downloads)) {
+    if (!isFresh(entry, CACHE_FRESH_TTL.downloads)) {
+      runInBackground(cacheKey, async () => {
+        const downloads = await fetchDownloads(normalized);
+        const points = buildDownloadTrend(downloads);
+        if (points.length > 0) {
+          await cacheSet(cacheKey, points, CACHE_HARD_TTL.downloads);
+        }
+      });
+    }
+
+    return entry.data;
+  }
+
+  const downloads = await fetchDownloads(normalized);
+  const points = buildDownloadTrend(downloads);
+
+  if (points.length > 0) {
+    await cacheSet(cacheKey, points, CACHE_HARD_TTL.downloads);
+  }
+
+  return points;
 }
 
 async function refreshPackage(

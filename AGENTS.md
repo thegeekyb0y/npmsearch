@@ -33,6 +33,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - `app/package/[name]` + `package-view.tsx`, `package-readme.tsx`, `package-analytics.tsx`, `package-history.tsx` — `/latest` shell with streamed README, analytics and history; `app/[...pkg]` adds `/<pkg>` and `/<pkg>@<version>`.
 - `app/components/link-preview.tsx` — global hover headline for links with `data-preview-*` attributes.
 - `app/components/download-chart.tsx` — interactive 30-day SVG trend with pointer and keyboard inspection.
+- `app/maintainer/[name]` + `app/components/profile/*`, `app/lib/profiles.ts`, `app/lib/profile-art.ts` — seeded "maintainer signal" profile: sigil, package constellation, top-50 telemetry and aggregate reach trend.
 - `rail-section.tsx` + `section-link.tsx`, `show-more.tsx` — rail disclosures, deep links and collapsed overflow lists.
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
@@ -63,6 +64,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 6. **README.** `rehype-raw` + custom `rehype-sanitize` schema, relative URL rewrite against GitHub `HEAD`, server Shiki, TOC, copy buttons; `react-syntax-highlighter` removed. *(done)*
 7. **Analytics.** 30-day download trend, install size, dependency list with outdated flags, ESM/CJS + types badges. *(done)*
 8. **Short routes.** `/<pkg>` and `/<pkg>@<version>`. *(done)*
-9. **(V2) Accounts.** Better Auth + Prisma + Postgres, collections.
+9. **Maintainer profiles.** `/maintainer/<name>` signal identity, package constellation, top-50 telemetry, aggregate reach trend, maintainer rail links. *(done)*
+10. **(V2) Accounts.** Better Auth + Prisma + Postgres, collections.
 
 Reference for UX patterns (not code): `docs/npmx-reference.md`.

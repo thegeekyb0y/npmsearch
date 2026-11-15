@@ -54,6 +54,7 @@ keeps the interface quiet, and spends its complexity budget on speed:
 | **README TOC + copy buttons** | ❌ | ✅ |
 | **Missing-README fallback** | ❌ | ✅ |
 | **Short routes (`/react`, `/react@19`)** | ❌ | ✅ |
+| **Maintainer signal profiles** | ➖ | ✅ |
 | **Open source** | ❌ | ✅ |
 | Publishing, orgs, billing | ✅ | ➖ |
 
@@ -73,6 +74,8 @@ dashboard.
 - **README pipeline** — registry first, jsDelivr fallback, sanitize, Shiki, TOC,
   copy buttons.
 - **Short routes** — `/<pkg>` and `/<pkg>@<version>`, including scoped names.
+- **Maintainer signals** — `/maintainer/<name>` turns a handle into a seeded
+  sigil, a package constellation, top-50 telemetry and an aggregate reach chart.
 - **Responsive and accessible** — 360 / 768 / 1280, axe checks, reduced motion.
 
 ## Architecture
