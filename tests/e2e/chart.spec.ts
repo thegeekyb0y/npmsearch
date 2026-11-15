@@ -17,8 +17,13 @@ test("download chart supports pointer and keyboard inspection", async ({
   const before = await chart.getAttribute("aria-valuetext");
   expect(before).toBeTruthy();
 
+  const readout = page.locator("[data-chart-readout]");
+  await expect(readout).toBeVisible();
+  const readoutBefore = await readout.innerText();
+
   await page.keyboard.press("ArrowLeft");
   await expect(chart).not.toHaveAttribute("aria-valuetext", before ?? "");
+  await expect(readout).not.toHaveText(readoutBefore);
 
   const box = await chart.boundingBox();
   expect(box).not.toBeNull();
@@ -26,5 +31,6 @@ test("download chart supports pointer and keyboard inspection", async ({
   if (box) {
     await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
     await expect(chart).toHaveAttribute("aria-valuetext", /downloads$/);
+    await expect(readout).toBeVisible();
   }
 });
