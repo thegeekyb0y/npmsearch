@@ -169,6 +169,15 @@
   opacity: 1;
 }
 
+.constellation-node {
+  outline: none;
+}
+
+.constellation-node:focus-visible circle:last-of-type {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
 @media (min-width: 1024px) {
   .home-search-space {
     margin-top: max(3rem, calc(50dvh - 240px));

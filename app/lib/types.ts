@@ -72,6 +72,12 @@ export type PackageAnalytics = {
   moduleFormats: ModuleFormat;
 };
 
+export type MaintainerTrend = {
+  points: DownloadPoint[];
+  weekly: number;
+  monthly: number;
+};
+
 export type GithubStats = {
   stars?: number;
   forks?: number;

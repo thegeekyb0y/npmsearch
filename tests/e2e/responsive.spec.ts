@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const paths = ["/", "/search?q=react", "/package/react", "/how-it-works"];
+const paths = [
+  "/",
+  "/search?q=react",
+  "/package/react",
+  "/maintainer/sindresorhus",
+  "/how-it-works",
+];
 
 async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => {

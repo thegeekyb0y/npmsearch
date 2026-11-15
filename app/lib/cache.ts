@@ -10,6 +10,7 @@ export const CACHE_FRESH_TTL = {
   github: 86_400,
   analytics: 3_600,
   readme: 86_400,
+  profile: 3_600,
 } as const;
 
 export const CACHE_HARD_TTL = {
@@ -20,6 +21,7 @@ export const CACHE_HARD_TTL = {
   github: 604_800,
   analytics: 86_400,
   readme: 604_800,
+  profile: 86_400,
 } as const;
 
 /** Backwards-compatible alias for the fresh window. */
@@ -74,6 +76,10 @@ export function versionOverviewCacheKey(
 
 export function readmeCacheKey(name: string, version: string): string {
   return `${CACHE_VERSION}:readme:${normalizePackageInput(name)}@${version.toLowerCase()}`;
+}
+
+export function profileTrendCacheKey(name: string): string {
+  return `${CACHE_VERSION}:profile-trend:${normalizePackageInput(name)}`;
 }
 
 export function downloadsCacheKey(name: string): string {

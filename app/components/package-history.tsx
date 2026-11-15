@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleAlert, GitFork, Star, Users } from "lucide-react";
+import { ChevronRight, CircleAlert, GitFork, Star, Users } from "lucide-react";
 import { formatCompactNumber, formatDate } from "@/app/lib/format";
 import { getPackageExtras } from "@/app/lib/package-page";
 import type { RecentVersion } from "@/app/lib/types";
@@ -49,8 +49,13 @@ function MaintainerRow({
   maintainer: { name: string; email?: string };
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 py-1.5">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-border-strong text-text-secondary">
+    <Link
+      href={`/maintainer/${encodeURIComponent(maintainer.name)}`}
+      data-preview-title={maintainer.name}
+      data-preview-subtitle="npm maintainer"
+      className="group flex min-h-11 min-w-0 items-center gap-3 rounded-[var(--radius-sm)] py-1.5 transition-colors duration-150 ease-out hover:bg-surface-hover"
+    >
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-border-strong text-text-secondary transition-colors duration-150 ease-out group-hover:border-brand group-hover:text-brand">
         <Users aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} />
       </div>
       <div className="min-w-0">
@@ -63,7 +68,11 @@ function MaintainerRow({
           </p>
         ) : null}
       </div>
-    </div>
+      <ChevronRight
+        aria-hidden="true"
+        className="ml-auto h-3.5 w-3.5 shrink-0 text-text-muted opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100"
+      />
+    </Link>
   );
 }
 
