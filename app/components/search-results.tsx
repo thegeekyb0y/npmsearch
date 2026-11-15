@@ -1,6 +1,7 @@
 "use client";
 
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   startTransition,
@@ -12,6 +13,8 @@ import {
 } from "react";
 import { FOCUS_RESULTS_EVENT } from "../lib/keyboard-events";
 import { focusGlobalSearch } from "../lib/keyboard";
+import { POPULAR_PACKAGES } from "../lib/popular";
+import { getQueryIssue } from "../lib/search-query";
 import {
   MAX_SEARCH_FROM,
   canLoadMore,
@@ -81,6 +84,86 @@ function emptyResults(size = 20): SearchResults {
   return { total: 0, results: [], from: 0, size };
 }
 
+type SearchErrorKind = "registry" | "rate-limit" | "network" | "invalid";
+
+type SearchErrorInfo = {
+  kind: SearchErrorKind;
+  retryAfterSeconds?: number;
+};
+
+class SearchRequestError extends Error {
+  constructor(readonly info: SearchErrorInfo) {
+    super(`Search request failed: ${info.kind}`);
+    this.name = "SearchRequestError";
+  }
+}
+
+const retryButtonClass =
+  "inline-flex min-h-11 items-center rounded-[var(--radius-sm)] border border-border-subtle px-4 font-mono text-[11px] text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary";
+
+const suggestionLinkClass =
+  "inline-flex min-h-11 items-center font-mono text-[12px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand";
+
+function describeSearchError(error: SearchErrorInfo | null) {
+  switch (error?.kind) {
+    case "rate-limit":
+      return {
+        title: "Slow down for a moment",
+        message:
+          error.retryAfterSeconds && error.retryAfterSeconds > 0
+            ? `Too many searches in a row. Try again in ${error.retryAfterSeconds} seconds.`
+            : "Too many searches in a row. Give it a few seconds, then try again.",
+      };
+    case "network":
+      return {
+        title: "Can't reach search",
+        message:
+          "The request didn't make it through. Check your connection, then try again.",
+      };
+    case "invalid":
+      return {
+        title: "That search couldn't run",
+        message: "Adjust the query slightly and try again.",
+      };
+    default:
+      return {
+        title: "Search is unavailable",
+        message:
+          "The npm registry didn't respond. Try the same query again in a moment.",
+      };
+  }
+}
+
+function initialStatus(
+  query: string,
+  data?: SearchResults,
+): "idle" | "loading" {
+  if (!query || data || getQueryIssue(query)) return "idle";
+  return "loading";
+}
+
+function PopularSuggestions() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-text-label">
+        try
+      </span>
+      {POPULAR_PACKAGES.slice(0, 4).map((name) => (
+        <Link key={name} href={`/package/${name}`} className={suggestionLinkClass}>
+          <span className="link-underline">{name}</span>
+        </Link>
+      ))}
+      <button
+        type="button"
+        onClick={focusGlobalSearch}
+        className={suggestionLinkClass}
+      >
+        <span className="link-underline">keep searching</span>
+      </button>
+    </div>
+  );
+}
+
 export function SearchResultsView({
   initialQuery,
   initialData,
@@ -90,9 +173,10 @@ export function SearchResultsView({
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [data, setData] = useState(() => initialData ?? emptyResults());
-  const [status, setStatus] = useState<"idle" | "loading" | "error">(
-    initialQuery && !initialData ? "loading" : "idle",
+  const [status, setStatus] = useState<"idle" | "loading" | "error">(() =>
+    initialStatus(initialQuery, initialData),
   );
+  const [error, setError] = useState<SearchErrorInfo | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState(false);
   const [exhausted, setExhausted] = useState(false);
@@ -114,7 +198,8 @@ export function SearchResultsView({
     setPreviousInitialQuery(initialQuery);
     setQuery(initialQuery);
     setData(initialData ?? emptyResults());
-    setStatus(initialQuery && !initialData ? "loading" : "idle");
+    setStatus(initialStatus(initialQuery, initialData));
+    setError(null);
     setIsLoadingMore(false);
     setMoreError(false);
     setExhausted(false);
@@ -153,11 +238,15 @@ export function SearchResultsView({
   const load = useCallback(
     async (rawQuery: string, force = false) => {
       const next = rawQuery.trim();
+      const issue = getQueryIssue(next);
 
-      if (!next) {
+      // Empty and out-of-range queries stay local: the registry would answer
+      // 400, and a red error would blame the user for typing.
+      if (!next || issue) {
         abortRef.current?.abort();
         moreAbortRef.current?.abort();
-        applyData("", emptyResults());
+        setError(null);
+        applyData(next, emptyResults());
         return;
       }
 
@@ -183,6 +272,7 @@ export function SearchResultsView({
       setMoreError(false);
       setExhausted(false);
       setPaginationReady(false);
+      setError(null);
       if (paginationTimerRef.current) {
         window.clearTimeout(paginationTimerRef.current);
       }
@@ -204,21 +294,42 @@ export function SearchResultsView({
         );
 
         if (!response.ok) {
-          throw new Error(`Search failed with status ${response.status}`);
+          if (response.status === 429) {
+            const retryAfter = Number.parseInt(
+              response.headers.get("retry-after") ?? "",
+              10,
+            );
+
+            throw new SearchRequestError({
+              kind: "rate-limit",
+              retryAfterSeconds: Number.isFinite(retryAfter)
+                ? retryAfter
+                : undefined,
+            });
+          }
+
+          throw new SearchRequestError({
+            kind: response.status >= 500 ? "registry" : "invalid",
+          });
         }
 
         const json: unknown = await response.json();
 
         if (!isSearchResults(json)) {
-          throw new Error("Unexpected search response");
+          throw new SearchRequestError({ kind: "registry" });
         }
 
         if (controller.signal.aborted) return;
 
         writeCache(next, json);
         applyData(next, json);
-      } catch {
+      } catch (caught) {
         if (controller.signal.aborted) return;
+        setError(
+          caught instanceof SearchRequestError
+            ? caught.info
+            : { kind: "network" },
+        );
         setStatus("error");
       }
     },
@@ -416,6 +527,8 @@ export function SearchResultsView({
   }, [requestFocus]);
 
   const isLoading = status === "loading";
+  const queryIssue = getQueryIssue(query);
+  const errorInfo = describeSearchError(error);
   const countLabel = isLoading
     ? "…"
     : status === "error"
@@ -432,9 +545,19 @@ export function SearchResultsView({
         }`}
       />
       <p className="sr-only" role="status" aria-live="polite">
-        {isLoading
-          ? "Searching"
-          : `${data.results.length.toLocaleString("en-US")} of ${data.total.toLocaleString("en-US")} results for ${query || "no query"}${isLoadingMore ? ", loading more" : ""}`}
+        {queryIssue
+          ? queryIssue.kind === "short"
+            ? `Searches need at least ${queryIssue.minimum} characters. Add ${
+                queryIssue.remaining === 1
+                  ? "one more character"
+                  : `${queryIssue.remaining} more characters`
+              }.`
+            : `The query is too long. Searches are limited to ${queryIssue.maximum} characters.`
+          : isLoading
+            ? "Searching"
+            : status === "error"
+              ? ""
+              : `${data.results.length.toLocaleString("en-US")} of ${data.total.toLocaleString("en-US")} results for ${query || "no query"}${isLoadingMore ? ", loading more" : ""}`}
       </p>
 
       {query ? (
@@ -443,16 +566,28 @@ export function SearchResultsView({
             search
           </p>
           <h1 className="m-0 font-mono text-[clamp(20px,4vw,28px)] leading-[1.2] font-semibold tracking-[-0.02em] text-text-primary">
-            <span className="text-brand">{countLabel}</span>{" "}
-            packages for &quot;{query}&quot;
+            {queryIssue ? (
+              <span className="text-brand">
+                {queryIssue.kind === "short" ? "keep typing" : "query too long"}
+              </span>
+            ) : (
+              <>
+                <span className="text-brand">{countLabel}</span>{" "}
+                packages for &quot;{query}&quot;
+              </>
+            )}
           </h1>
           <p className="m-0 text-[12px] leading-5 text-text-secondary">
-            Ranked by registry relevance · weekly downloads from npm
+            {queryIssue
+              ? queryIssue.kind === "short"
+                ? `Searches need at least ${queryIssue.minimum} characters.`
+                : `Searches are limited to ${queryIssue.maximum} characters.`
+              : "Ranked by registry relevance · weekly downloads from npm"}
           </p>
         </header>
       ) : null}
 
-      {status === "error" ? (
+      {status === "error" && data.results.length > 0 ? (
         <div
           role="alert"
           className="mb-4 flex flex-wrap items-center gap-3 border-y border-border-subtle py-3 text-[12px] text-text-secondary"
@@ -461,7 +596,7 @@ export function SearchResultsView({
           <button
             type="button"
             onClick={() => void load(query, true)}
-            className="inline-flex min-h-11 items-center rounded-[var(--radius-sm)] border border-border-subtle px-3 font-mono text-[11px] text-text-secondary transition-colors duration-150 ease-out hover:border-border-strong hover:bg-surface-raised hover:text-text-primary"
+            className={retryButtonClass}
           >
             retry
           </button>
@@ -471,20 +606,48 @@ export function SearchResultsView({
       {data.results.length === 0 ? (
         isLoading ? (
           <SearchSkeleton rows={6} />
+        ) : queryIssue ? (
+          <StatusPanel
+            title={
+              queryIssue.kind === "short" ? "One more character" : "Trim the search"
+            }
+            message={
+              queryIssue.kind === "short"
+                ? `Add ${
+                    queryIssue.remaining === 1
+                      ? "one more character"
+                      : `${queryIssue.remaining} more characters`
+                  } to "${query}" and results will appear as you type.`
+                : `"${query.slice(0, 24)}…" is past the ${queryIssue.maximum}-character limit. Shorten it to keep searching.`
+            }
+            action={<PopularSuggestions />}
+          />
+        ) : status === "error" ? (
+          <StatusPanel
+            title={errorInfo.title}
+            message={errorInfo.message}
+            error
+            action={
+              <button
+                type="button"
+                onClick={() => void load(query, true)}
+                className={retryButtonClass}
+              >
+                retry
+              </button>
+            }
+          />
         ) : query ? (
           <StatusPanel
-            title={status === "error" ? "Search is unavailable" : "No packages found"}
-            message={
-              status === "error"
-                ? "The registry did not respond. Try the same query again in a moment."
-                : `No results matched "${query}". Try a broader term or a different package name.`
-            }
-            error={status === "error"}
+            title="No packages found"
+            message={`No results matched "${query}". Try a broader term or a different package name.`}
+            action={<PopularSuggestions />}
           />
         ) : (
           <StatusPanel
             title="Search the npm registry"
             message="Enter a package name, scope, or keyword to explore results."
+            action={<PopularSuggestions />}
           />
         )
       ) : (

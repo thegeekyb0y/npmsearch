@@ -16,6 +16,7 @@ import {
 } from "./cache";
 import { runInBackground } from "./background";
 import { getGithubStats } from "./github";
+import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "./search-query";
 import type {
   DownloadPoint,
   LatestVersionInfo,
@@ -78,7 +79,11 @@ const searchResponseSchema = z.object({
 });
 
 export function normalizeQuery(query: string): string {
-  return query.trim().replace(/\s+/g, " ").toLowerCase().slice(0, 200);
+  return query
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .slice(0, MAX_QUERY_LENGTH);
 }
 
 export function normalizePackageName(name: string): string {
@@ -205,7 +210,7 @@ export async function searchPackages(
   const normalized = normalizeQuery(query);
   const { from, size } = clampSearchParams(options);
 
-  if (!normalized) {
+  if (normalized.length < MIN_QUERY_LENGTH) {
     return { total: 0, results: [], from, size };
   }
 

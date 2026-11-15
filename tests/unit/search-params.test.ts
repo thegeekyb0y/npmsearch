@@ -33,12 +33,30 @@ describe("parseSearchParams", () => {
     expect(parseSearchParams(new URLSearchParams("q=%20%20")).ok).toBe(false);
   });
 
-  it("rejects an oversized query", () => {
+  it("rejects a query shorter than the registry minimum", () => {
+    const result = parseSearchParams(new URLSearchParams("q=k"));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toContain("at least 2 characters");
+    }
+  });
+
+  it("rejects a query past the registry maximum", () => {
     const result = parseSearchParams(
-      new URLSearchParams(`q=${"a".repeat(201)}`),
+      new URLSearchParams(`q=${"a".repeat(65)}`),
     );
 
     expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toContain("limited to 64 characters");
+    }
+  });
+
+  it("accepts the exactly 64-character boundary", () => {
+    expect(
+      parseSearchParams(new URLSearchParams(`q=${"a".repeat(64)}`)).ok,
+    ).toBe(true);
   });
 
   it("rejects invalid pagination", () => {

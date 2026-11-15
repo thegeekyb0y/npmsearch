@@ -1,6 +1,7 @@
 import { SearchResultsView } from "../components/search-results";
 import { AppShell, PageContainer } from "../components/ui";
 import { searchPackages } from "../lib/registry";
+import { isSearchableQuery } from "../lib/search-query";
 import type { SearchResults } from "../lib/types";
 
 export default async function SearchPage({
@@ -13,7 +14,9 @@ export default async function SearchPage({
 
   let data: SearchResults | undefined;
 
-  if (query) {
+  // Queries outside the registry's 2–64 character window would come back as a
+  // 400. The client renders a "keep typing" hint instead of an error.
+  if (isSearchableQuery(query)) {
     try {
       data = await searchPackages(query);
     } catch {

@@ -63,6 +63,18 @@ describe("GET /api/search", () => {
     expect(searchPackages).not.toHaveBeenCalled();
   });
 
+  it("rejects a one-character query with a readable message", async () => {
+    const response = await GET(
+      new NextRequest("http://localhost/api/search?q=k"),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("at least 2 characters"),
+    });
+    expect(searchPackages).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid pagination", async () => {
     const response = await GET(
       new NextRequest("http://localhost/api/search?q=react&from=-1"),

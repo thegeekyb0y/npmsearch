@@ -52,6 +52,74 @@ test("instant search updates the URL and results without a full reload", async (
   expect(requests.length).toBeGreaterThan(0);
 });
 
+test("a one-character query asks for another character instead of failing", async ({
+  page,
+}) => {
+  const requested: string[] = [];
+
+  await page.route("**/api/search**", async (route) => {
+    const url = new URL(route.request().url());
+    const query = url.searchParams.get("q") ?? "";
+    requested.push(query);
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(payloadFor(query)),
+    });
+  });
+
+  await page.goto("/search?q=k");
+
+  await expect(
+    page.getByRole("heading", { name: "keep typing" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "One more character" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Search is unavailable" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "react" })).toBeVisible();
+  expect(requested).toEqual([]);
+
+  const input = page.getByRole("searchbox", { name: "Search npm packages" });
+  await input.fill("react");
+
+  await expect(
+    page.locator('a[href="/package/react"]').first(),
+  ).toBeVisible();
+  expect(requested.every((query) => query.length >= 2)).toBe(true);
+});
+
+test("rate limiting explains itself instead of blaming the registry", async ({
+  page,
+}) => {
+  await page.route("**/api/search**", async (route) => {
+    await route.fulfill({
+      status: 429,
+      headers: { "retry-after": "7" },
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Too many requests" }),
+    });
+  });
+
+  await page.goto("/search");
+  await expect(
+    page.getByRole("heading", { name: "Search the npm registry" }),
+  ).toBeVisible();
+
+  const input = page.getByRole("searchbox", { name: "Search npm packages" });
+  await input.fill("react");
+
+  await expect(
+    page.getByRole("heading", { name: "Slow down for a moment" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Slow down for a moment" }),
+  ).toContainText("Try again in 7 seconds");
+});
+
 test("a burst of typing is debounced to a small number of requests", async ({
   page,
 }) => {
