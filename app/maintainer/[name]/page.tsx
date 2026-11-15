@@ -41,25 +41,47 @@ export async function generateMetadata({
   };
 }
 
+const STAT_TONE = {
+  orange: {
+    box: "border-[var(--accent-soft-border)] bg-[var(--accent-soft-bg)]",
+    rule: "bg-brand",
+  },
+  teal: {
+    box: "border-[var(--accent-teal-soft-border)] bg-[var(--accent-teal-soft-bg)]",
+    rule: "bg-brand-2",
+  },
+  green: {
+    box: "border-[var(--accent-green-soft-border)] bg-[var(--accent-green-soft-bg)]",
+    rule: "bg-accent-green",
+  },
+} as const;
+
+type Tone = keyof typeof STAT_TONE;
+
+const PANEL_TONE: Record<Tone, { border: string; text: string }> = {
+  orange: { border: "var(--accent)", text: "text-brand" },
+  teal: { border: "var(--accent-2)", text: "text-brand-2" },
+  green: { border: "var(--accent-green)", text: "text-accent-green" },
+};
+
 function Stat({
   label,
   value,
-  accent,
+  tone,
   className = "",
 }: {
   label: string;
   value: string;
-  accent: string;
+  tone: Tone;
   className?: string;
 }) {
   return (
     <div
-      className={`min-w-0 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4 ${className}`}
+      className={`min-w-0 rounded-[var(--radius-sm)] border p-4 ${STAT_TONE[tone].box} ${className}`}
     >
       <span
         aria-hidden="true"
-        className="block h-0.5 w-7 rounded-full"
-        style={{ backgroundColor: accent }}
+        className={`block h-0.5 w-7 rounded-full ${STAT_TONE[tone].rule}`}
       />
       <p className="mt-3 mb-0 truncate font-mono text-[22px] leading-none font-semibold tracking-[-0.02em] text-text-primary">
         {value}
@@ -71,10 +93,20 @@ function Stat({
   );
 }
 
-function SectionTag({ label, note }: { label: string; note?: string }) {
+function SectionTag({
+  label,
+  note,
+  tone,
+}: {
+  label: string;
+  note?: string;
+  tone: Tone;
+}) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2">
-      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-text-label">
+      <span
+        className={`font-mono text-[10px] uppercase tracking-[0.1em] ${PANEL_TONE[tone].text}`}
+      >
         {label}
       </span>
       {note ? (
@@ -248,6 +280,18 @@ async function MaintainerBody({
         ? ((item.weeklyDownloads ?? 0) / leaderWeekly) * 100
         : 0,
   }));
+  const leaderTones = [
+    palette.a,
+    palette.b,
+    "var(--accent-green)",
+    "var(--accent)",
+  ];
+  const specimenTones = [
+    palette.a,
+    palette.b,
+    "var(--accent-green)",
+    "var(--accent)",
+  ];
 
   return (
     <>
@@ -258,24 +302,31 @@ async function MaintainerBody({
         <Stat
           label="packages"
           value={profile.total.toLocaleString("en-US")}
-          accent={palette.a}
+          tone="orange"
         />
         <Stat
           label="weekly · top 50"
           value={formatCompactNumber(profile.weeklyDownloads)}
-          accent={palette.b}
+          tone="teal"
         />
         <Stat
           label="top package"
           value={top?.name ?? "—"}
-          accent="var(--text-primary)"
+          tone="green"
           className="col-span-2 sm:col-span-1"
         />
       </section>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="min-w-0 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4">
-          <SectionTag label="signal" note={`${mapped} packages mapped`} />
+        <section
+          className="min-w-0 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4"
+          style={{ borderTopColor: PANEL_TONE.teal.border, borderTopWidth: 2 }}
+        >
+          <SectionTag
+            label="signal"
+            note={`${mapped} packages mapped`}
+            tone="teal"
+          />
           <div className="mt-3">
             <PackageConstellation
               name={name}
@@ -285,8 +336,11 @@ async function MaintainerBody({
           </div>
         </section>
 
-        <section className="min-w-0 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4">
-          <SectionTag label="telemetry" note="top 50 snapshot" />
+        <section
+          className="min-w-0 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4"
+          style={{ borderTopColor: PANEL_TONE.green.border, borderTopWidth: 2 }}
+        >
+          <SectionTag label="telemetry" note="top 50 snapshot" tone="green" />
           <dl className="mt-3 space-y-0">
             <TelemetryRow label="handle" value={`@${name}`} />
             <TelemetryRow label="seed" value={seed} />
@@ -342,8 +396,7 @@ async function MaintainerBody({
                         style={{
                           width: `${Math.max(item.ratio, 2)}%`,
                           backgroundColor:
-                            index === 0 ? palette.a : palette.b,
-                          opacity: index === 0 ? 1 : 0.6 - (index - 1) * 0.12,
+                            leaderTones[index] ?? palette.b,
                         }}
                       />
                     </div>
@@ -355,8 +408,15 @@ async function MaintainerBody({
         </section>
       </div>
 
-      <section className="mt-4 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4">
-        <SectionTag label="reach" note="top 5 packages · last 30 days" />
+      <section
+        className="mt-4 rounded-[var(--radius-sm)] border border-border-subtle bg-surface p-4"
+        style={{ borderTopColor: PANEL_TONE.orange.border, borderTopWidth: 2 }}
+      >
+        <SectionTag
+          label="reach"
+          note="top 5 packages · last 30 days"
+          tone="orange"
+        />
         <div className="mt-3">
           <Suspense fallback={<ChartSkeleton />}>
             <MaintainerReach
@@ -371,7 +431,7 @@ async function MaintainerBody({
       <section className="mt-8">
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border-subtle pb-3">
           <div>
-            <p className="m-0 font-mono text-[10px] uppercase tracking-[0.1em] text-text-label">
+            <p className="m-0 font-mono text-[10px] uppercase tracking-[0.1em] text-brand-2">
               specimens
             </p>
             <h2 className="mt-1 mb-0 text-[18px] font-semibold tracking-[-0.01em] text-text-primary">
@@ -390,7 +450,9 @@ async function MaintainerBody({
               key={item.name}
               item={item}
               index={index}
-              accent={index % 3 === 0 ? palette.b : palette.a}
+              accent={
+                specimenTones[index % specimenTones.length] ?? palette.a
+              }
             />
           ))}
         </div>
@@ -431,21 +493,22 @@ export default async function MaintainerPage({
           search
         </Link>
 
-        <header className="relative mt-4 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface p-5 sm:p-7">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background: `radial-gradient(circle at 12% 18%, ${palette.a}16, transparent 55%)`,
-            }}
-          />
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+        <header
+          className="relative mt-4 overflow-hidden rounded-[var(--radius-md)] border border-border-subtle bg-surface p-5 sm:p-7"
+          style={{ borderTopColor: palette.a, borderTopWidth: 2 }}
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-border-strong">
               <ProfileSigil name={normalized} palette={palette} />
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="m-0 font-mono text-[10px] uppercase tracking-[0.12em] text-text-label">
+              <p className="m-0 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-text-label">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: palette.b }}
+                />
                 maintainer signal
               </p>
               <h1 className="mt-1 mb-0 break-words font-mono text-[clamp(30px,7vw,64px)] leading-[0.95] font-semibold tracking-[-0.04em] text-text-primary">

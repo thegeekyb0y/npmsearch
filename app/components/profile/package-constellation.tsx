@@ -9,6 +9,12 @@ function shortName(name: string) {
   return name.length > 16 ? `${name.slice(0, 15)}…` : name;
 }
 
+const ORBITS = [
+  { radius: 42, color: "var(--accent-2)", opacity: 0.55 },
+  { radius: 76, color: "var(--accent-green)", opacity: 0.42 },
+  { radius: 108, color: "var(--accent)", opacity: 0.34 },
+];
+
 function NodeLabel({ node }: { node: ConstellationNode }) {
   const dx = node.x - 200;
   const dy = node.y - 150;
@@ -21,11 +27,11 @@ function NodeLabel({ node }: { node: ConstellationNode }) {
       x={node.x + (dx / distance) * offset}
       y={node.y + (dy / distance) * offset + 2.5}
       textAnchor={anchor}
-      fill="var(--text-secondary)"
+      fill="var(--text-primary)"
       stroke="var(--surface)"
       strokeWidth="3"
       paintOrder="stroke"
-      fontSize="8.5"
+      fontSize="9"
       fontFamily="var(--font-geist-mono)"
     >
       {shortName(node.name)}
@@ -54,17 +60,18 @@ export function PackageConstellation({
         role="group"
         aria-label={`Package constellation for ${name}`}
       >
-        {[42, 76, 108].map((radius) => (
+        {ORBITS.map((orbit) => (
           <ellipse
-            key={radius}
+            key={orbit.radius}
             cx="200"
             cy="150"
-            rx={radius}
-            ry={radius * 0.7}
+            rx={orbit.radius}
+            ry={orbit.radius * 0.7}
             fill="none"
-            stroke="var(--border-subtle)"
-            strokeOpacity="0.5"
-            strokeDasharray="2 5"
+            stroke={orbit.color}
+            strokeOpacity={orbit.opacity}
+            strokeWidth="1"
+            strokeDasharray="4 6"
           />
         ))}
 
@@ -76,8 +83,8 @@ export function PackageConstellation({
             x2={link.to.x}
             y2={link.to.y}
             stroke="var(--border-strong)"
-            strokeOpacity="0.55"
-            strokeWidth="0.8"
+            strokeOpacity="0.9"
+            strokeWidth="1.1"
           />
         ))}
 
@@ -100,7 +107,7 @@ export function PackageConstellation({
               cy={node.y}
               r={node.r}
               fill={index === 0 ? palette.a : palette.b}
-              fillOpacity={index === 0 ? 0.95 : 0.65}
+              fillOpacity={index === 0 ? 0.95 : 0.85}
               stroke={index === 0 ? palette.a : "var(--background)"}
               strokeWidth={index === 0 ? 2 : 1}
             />
