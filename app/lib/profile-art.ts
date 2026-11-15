@@ -7,10 +7,10 @@ export type ProfilePalette = {
 };
 
 const PALETTES: ProfilePalette[] = [
-  { name: "signal", a: "#5eead4", b: "#7aa2ff" },
-  { name: "ember", a: "#ff7a1a", b: "#b6a4ff" },
-  { name: "field", a: "#4ade80", b: "#5eead4" },
-  { name: "void", a: "#b6a4ff", b: "#7aa2ff" },
+  { name: "signal", a: "#5eead4", b: "#4ade80" },
+  { name: "ember", a: "#ff7a1a", b: "#fbbf24" },
+  { name: "field", a: "#4ade80", b: "#fbbf24" },
+  { name: "kindle", a: "#ff7a1a", b: "#5eead4" },
   { name: "rust", a: "#ff7a1a", b: "#4ade80" },
 ];
 
@@ -79,11 +79,6 @@ export function getSigilCells(name: string, size = 7): SigilCell[] {
   }
 
   return cells;
-}
-
-export function getSignalBars(name: string, count = 36): number[] {
-  const random = mulberry32(hashString(`bars:${name.toLowerCase()}`));
-  return Array.from({ length: count }, () => 3 + Math.floor(random() * 18));
 }
 
 export type ArtPackage = {

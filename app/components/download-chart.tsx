@@ -112,6 +112,13 @@ export function DownloadChart({
     ? activePoint.downloads.toLocaleString("en-US")
     : "—";
   const range = `${formatDay(points[0]?.day)} → ${formatDay(points[count - 1]?.day)}`;
+  const xRatio = activeCoord.x / WIDTH;
+  const yRatio = activeCoord.y / HEIGHT;
+  const anchor = xRatio < 0.12 ? "start" : xRatio > 0.88 ? "end" : "center";
+  const below = yRatio < 0.5;
+  const translateX =
+    anchor === "start" ? "0" : anchor === "end" ? "-100%" : "-50%";
+  const translateY = below ? "0" : "-100%";
 
   function setFromPointer(event: PointerEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -186,11 +193,6 @@ export function DownloadChart({
       <div className="mt-3 flex items-center justify-between gap-3 font-mono text-[10px] text-text-muted">
         <span className="truncate">{range}</span>
         <span className="hidden shrink-0 sm:inline">hover or arrows</span>
-      </div>
-
-      <div className="mt-1.5 flex min-h-5 items-center justify-between gap-3 font-mono text-[10px]">
-        <span className="text-text-secondary">{readoutDate}</span>
-        <span className="text-text-primary">{readoutValue}</span>
       </div>
 
       <div
@@ -268,9 +270,25 @@ export function DownloadChart({
               style={{
                 left: `${(activeCoord.x / WIDTH) * 100}%`,
                 top: `${(activeCoord.y / HEIGHT) * 100}%`,
-                borderColor: accent ?? "var(--accent)",
+                borderColor: accent ?? "var(--accent-2)",
               }}
             />
+            <span
+              aria-hidden="true"
+              data-chart-readout=""
+              className="pointer-events-none absolute flex flex-col gap-0.5 rounded-[var(--radius-xs)] border bg-surface-raised px-2 py-1 font-mono leading-none"
+              style={{
+                left: `${xRatio * 100}%`,
+                top: `calc(${yRatio * 100}% + ${below ? 12 : -12}px)`,
+                transform: `translate(${translateX}, ${translateY})`,
+                borderColor: accent ?? "var(--accent-2)",
+              }}
+            >
+              <span className="text-[9px] text-text-muted">{readoutDate}</span>
+              <span className="text-[10px] tabular-nums text-text-primary">
+                {readoutValue}
+              </span>
+            </span>
           </>
         ) : null}
       </div>

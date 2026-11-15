@@ -26,10 +26,10 @@ test("maintainer profile renders signal, telemetry, reach and packages", async (
     "href",
     /^\/package\//,
   );
-
   await expect(
-    page.locator('a[data-preview-title="ansi-styles"]'),
+    constellation.locator('a[data-preview-title="ansi-styles"]'),
   ).toBeVisible();
+
   await expect(
     page.getByRole("slider", { name: "Aggregate download trend" }),
   ).toBeVisible({ timeout: 60_000 });
@@ -37,6 +37,36 @@ test("maintainer profile renders signal, telemetry, reach and packages", async (
   await expect(
     page.getByRole("link", { name: /See all [\d,]+ packages/ }),
   ).toHaveAttribute("href", "/search?q=maintainer%3Asindresorhus");
+});
+
+test("constellation nodes preview the package on hover and focus", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/maintainer/sindresorhus", {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    page.getByRole("heading", { level: 1, name: "@sindresorhus" }),
+  ).toBeVisible({ timeout: 60_000 });
+
+  const constellation = page.getByRole("group", {
+    name: "Package constellation for sindresorhus",
+  });
+  const node = constellation.locator('a[data-preview-title="ansi-styles"]');
+  await expect(node).toBeVisible();
+
+  if (testInfo.project.name !== "mobile") {
+    await node.hover();
+    await expect(page.locator("[data-link-preview]")).toContainText(
+      "ansi-styles",
+    );
+    await page.mouse.move(0, 0);
+  }
+
+  await node.focus();
+  await expect(page.locator("[data-link-preview]")).toContainText(
+    "ansi-styles",
+  );
 });
 
 test("package maintainers link to their profile", async ({ page }) => {
