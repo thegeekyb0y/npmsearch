@@ -12,6 +12,11 @@ import {
 import { emitFocusResults } from "../lib/keyboard-events";
 import { rememberSearch } from "../lib/recent-searches";
 import { emitSearchQuery } from "../lib/search-events";
+import {
+  getQueryIssue,
+  MAX_QUERY_LENGTH,
+  MIN_QUERY_LENGTH,
+} from "../lib/search-query";
 
 const DEBOUNCE_MS = 100;
 const DOCK_SETTLE_MS = 3_000;
@@ -215,6 +220,7 @@ export function SearchBox() {
 
   const dataHome = isHome ? "true" : "false";
   const dataSnap = animateDock && !isHome ? "false" : "true";
+  const queryIssue = getQueryIssue(query);
 
   return (
     <form
@@ -238,6 +244,8 @@ export function SearchBox() {
           type="search"
           name="q"
           value={query}
+          maxLength={MAX_QUERY_LENGTH}
+          aria-describedby={queryIssue ? "global-search-hint" : undefined}
           onChange={(event) => {
             const value = event.target.value;
             setQuery(value);
@@ -273,6 +281,13 @@ export function SearchBox() {
             isHome ? "lg:min-h-12 lg:text-[15px]" : ""
           }`}
         />
+        {queryIssue ? (
+          <span id="global-search-hint" className="sr-only">
+            {queryIssue.kind === "short"
+              ? `Type at least ${MIN_QUERY_LENGTH} characters to search.`
+              : `Searches are limited to ${MAX_QUERY_LENGTH} characters.`}
+          </span>
+        ) : null}
       </div>
       <button
         type="submit"
@@ -315,6 +330,7 @@ export function SearchBoxFallback() {
         <input
           type="search"
           name="q"
+          maxLength={MAX_QUERY_LENGTH}
           data-global-search
           aria-label="Search npm packages"
           aria-keyshortcuts="/"

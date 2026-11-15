@@ -197,4 +197,23 @@ describe("searchPackages", () => {
     expect(data.results).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("does not fetch for a one-character query", async () => {
+    const data = await searchPackages(" k ");
+
+    expect(data.results).toEqual([]);
+    expect(data.total).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("caps long queries at the registry limit", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(fixture), { status: 200 }),
+    );
+
+    await searchPackages("a".repeat(120));
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(new URL(url).searchParams.get("text")).toHaveLength(64);
+  });
 });

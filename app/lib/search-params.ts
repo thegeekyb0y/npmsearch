@@ -1,7 +1,15 @@
 import { z } from "zod";
+import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "./search-query";
 
 const searchParamsSchema = z.object({
-  q: z.string().trim().min(1).max(200),
+  q: z
+    .string()
+    .trim()
+    .min(
+      MIN_QUERY_LENGTH,
+      `searches need at least ${MIN_QUERY_LENGTH} characters`,
+    )
+    .max(MAX_QUERY_LENGTH, `searches are limited to ${MAX_QUERY_LENGTH} characters`),
   from: z.coerce.number().int().min(0).max(10_000).default(0),
   size: z.coerce.number().int().min(1).max(250).default(20),
 });

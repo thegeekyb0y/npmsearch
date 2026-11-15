@@ -38,7 +38,7 @@ Next.js 16 App Router · React 19 · TypeScript (strict) · Tailwind CSS v4 CSS-
 - Primitives: `meta-strip`, `tab-rail`, `rail-section`, `search-row`, `install-block`, `skeleton`, `key-hint`.
 - Pages: `app/page.tsx`, `app/search/page.tsx`, `app/package/[name]/page.tsx` + `loading.tsx`.
 - APIs: `app/api/search/route.ts` (client search only).
-- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open fresh/hard TTL), `app/lib/background.ts` (`after()` refresh, deduped), `app/lib/registry.ts`, `app/lib/analytics.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/rate-limit.ts`, `app/lib/format.ts`.
+- Lib: `app/lib/env.ts` (zod env), `app/lib/redis.ts` (optional client), `app/lib/cache.ts` (versioned, fail-open fresh/hard TTL), `app/lib/background.ts` (`after()` refresh, deduped), `app/lib/registry.ts`, `app/lib/analytics.ts`, `app/lib/github.ts`, `app/lib/search-params.ts`, `app/lib/search-query.ts` (shared 2–64 rule), `app/lib/rate-limit.ts`, `app/lib/format.ts`.
 
 ## Definition of done
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass.

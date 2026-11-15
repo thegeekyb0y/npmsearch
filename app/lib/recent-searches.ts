@@ -1,3 +1,5 @@
+import { isSearchableQuery } from "./search-query";
+
 const STORAGE_KEY = "npmsearch:recent";
 const MAX_RECENT = 8;
 
@@ -12,7 +14,10 @@ export function readRecentSearches(): string[] {
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .filter((value): value is string => typeof value === "string")
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && isSearchableQuery(value),
+      )
       .slice(0, MAX_RECENT);
   } catch {
     return [];
@@ -23,7 +28,7 @@ export function rememberSearch(query: string): void {
   if (typeof window === "undefined") return;
 
   const trimmed = query.trim();
-  if (!trimmed) return;
+  if (!isSearchableQuery(trimmed)) return;
 
   try {
     const next = [

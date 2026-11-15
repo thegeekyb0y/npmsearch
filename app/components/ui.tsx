@@ -79,10 +79,12 @@ export function StatusPanel({
   title,
   message,
   error = false,
+  action,
 }: {
   title: string;
   message: string;
   error?: boolean;
+  action?: ReactNode;
 }) {
   return (
     <section
@@ -99,6 +101,7 @@ export function StatusPanel({
       >
         {message}
       </p>
+      {action ? <div className="mt-4 flex flex-wrap items-center gap-3">{action}</div> : null}
     </section>
   );
 }

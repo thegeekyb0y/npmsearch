@@ -10,6 +10,7 @@ import {
 } from "react";
 import { POPULAR_PACKAGES } from "../lib/popular";
 import { readRecentSearches, rememberSearch } from "../lib/recent-searches";
+import { isSearchableQuery, MAX_QUERY_LENGTH } from "../lib/search-query";
 import { KeyHint } from "./key-hint";
 
 type CommandItem = {
@@ -59,7 +60,8 @@ export function CommandPalette({
 
   const recent = open ? readRecentSearches() : [];
   const normalized = query.trim().toLowerCase();
-  const searchItem: CommandItem[] = query.trim()
+  const canSearch = isSearchableQuery(query);
+  const searchItem: CommandItem[] = canSearch
     ? [
         {
           id: "search",
@@ -221,6 +223,7 @@ export function CommandPalette({
                 items.length > 0 ? `command-item-${safeActive}` : undefined
               }
               aria-label="Search commands and packages"
+              maxLength={MAX_QUERY_LENGTH}
               placeholder="jump to a package, search, or page…"
               autoComplete="off"
               spellCheck={false}
@@ -236,7 +239,9 @@ export function CommandPalette({
           >
             {items.length === 0 ? (
               <p className="m-0 px-2 py-4 text-[12px] text-text-secondary">
-                No matches.
+                {query.trim() && !canSearch
+                  ? "Keep typing — searches need at least 2 characters."
+                  : "No matches."}
               </p>
             ) : (
               items.map((item, index) => {
