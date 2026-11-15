@@ -12,7 +12,6 @@ import { formatCompactNumber } from "@/app/lib/format";
 import {
   getProfilePalette,
   getProfileSeed,
-  getSignalBars,
   type ProfilePalette,
 } from "@/app/lib/profile-art";
 import {
@@ -420,7 +419,6 @@ export default async function MaintainerPage({
 
   const palette = getProfilePalette(normalized);
   const seed = getProfileSeed(normalized);
-  const bars = getSignalBars(normalized);
 
   return (
     <AppShell>
@@ -450,7 +448,7 @@ export default async function MaintainerPage({
               <p className="m-0 font-mono text-[10px] uppercase tracking-[0.12em] text-text-label">
                 maintainer signal
               </p>
-              <h1 className="mt-1 mb-0 break-words font-mono text-[clamp(34px,8vw,72px)] leading-[0.95] font-semibold tracking-[-0.04em] text-text-primary">
+              <h1 className="mt-1 mb-0 break-words font-mono text-[clamp(30px,7vw,64px)] leading-[0.95] font-semibold tracking-[-0.04em] text-text-primary">
                 <span style={{ color: palette.a }}>@</span>
                 {normalized}
               </h1>
@@ -471,23 +469,6 @@ export default async function MaintainerPage({
                 </a>
               </div>
             </div>
-          </div>
-
-          <div
-            aria-hidden="true"
-            className="relative mt-5 flex h-6 items-end gap-[3px]"
-          >
-            {bars.map((height, index) => (
-              <span
-                key={index}
-                className="min-w-0 flex-1 rounded-[1px]"
-                style={{
-                  height: `${height}px`,
-                  backgroundColor: index % 3 === 0 ? palette.b : palette.a,
-                  opacity: 0.25 + (height / 24) * 0.55,
-                }}
-              />
-            ))}
           </div>
         </header>
 

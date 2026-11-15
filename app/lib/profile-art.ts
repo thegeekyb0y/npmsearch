@@ -81,11 +81,6 @@ export function getSigilCells(name: string, size = 7): SigilCell[] {
   return cells;
 }
 
-export function getSignalBars(name: string, count = 36): number[] {
-  const random = mulberry32(hashString(`bars:${name.toLowerCase()}`));
-  return Array.from({ length: count }, () => 3 + Math.floor(random() * 18));
-}
-
 export type ArtPackage = {
   name: string;
   weeklyDownloads?: number;
