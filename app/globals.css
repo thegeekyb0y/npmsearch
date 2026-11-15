@@ -171,11 +171,34 @@
 
 .constellation-node {
   outline: none;
+  transition-property: opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.constellation-node circle:last-of-type {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition-property: transform, stroke, stroke-width;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
 
 .constellation-node:focus-visible circle:last-of-type {
   stroke: var(--accent);
   stroke-width: 2.5;
+}
+
+@media (hover: hover) {
+  svg:has(.constellation-node:hover) .constellation-node:not(:hover) {
+    opacity: 0.72;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .constellation-node:hover circle:last-of-type {
+    transform: scale(1.12);
+  }
 }
 
 @media (min-width: 1024px) {

@@ -3,6 +3,7 @@ import {
   type ConstellationNode,
   type ProfilePalette,
 } from "@/app/lib/profile-art";
+import { formatCompactNumber } from "@/app/lib/format";
 import type { PackageSummary } from "@/app/lib/types";
 
 function shortName(name: string) {
@@ -49,6 +50,7 @@ export function PackageConstellation({
   palette: ProfilePalette;
 }) {
   const { nodes, links } = getConstellation(name, packages);
+  const summaries = new Map(packages.map((item) => [item.name, item]));
 
   if (nodes.length === 0) return null;
 
@@ -88,32 +90,39 @@ export function PackageConstellation({
           />
         ))}
 
-        {nodes.map((node, index) => (
-          <a
-            key={node.name}
-            href={`/package/${encodeURIComponent(node.name)}`}
-            className="constellation-node"
-            aria-label={`${node.name}: ${node.downloads.toLocaleString("en-US")} weekly downloads`}
-          >
-            <title>{node.name}</title>
-            <circle
-              cx={node.x}
-              cy={node.y}
-              r={node.r + 8}
-              fill="transparent"
-            />
-            <circle
-              cx={node.x}
-              cy={node.y}
-              r={node.r}
-              fill={index === 0 ? palette.a : palette.b}
-              fillOpacity={index === 0 ? 0.95 : 0.85}
-              stroke={index === 0 ? palette.a : "var(--background)"}
-              strokeWidth={index === 0 ? 2 : 1}
-            />
-            {index < 4 ? <NodeLabel node={node} /> : null}
-          </a>
-        ))}
+        {nodes.map((node, index) => {
+          const summary = summaries.get(node.name);
+
+          return (
+            <a
+              key={node.name}
+              href={`/package/${encodeURIComponent(node.name)}`}
+              className="constellation-node"
+              aria-label={`${node.name}: ${node.downloads.toLocaleString("en-US")} weekly downloads`}
+              data-preview-title={node.name}
+              data-preview-subtitle={summary?.description?.trim() || "npm package"}
+              data-preview-meta={`v${summary?.version ?? "?"} · ${formatCompactNumber(node.downloads)} / wk`}
+            >
+              <title>{node.name}</title>
+              <circle
+                cx={node.x}
+                cy={node.y}
+                r={node.r + 8}
+                fill="transparent"
+              />
+              <circle
+                cx={node.x}
+                cy={node.y}
+                r={node.r}
+                fill={index === 0 ? palette.a : palette.b}
+                fillOpacity={index === 0 ? 0.95 : 0.85}
+                stroke={index === 0 ? palette.a : "var(--background)"}
+                strokeWidth={index === 0 ? 2 : 1}
+              />
+              {index < 4 ? <NodeLabel node={node} /> : null}
+            </a>
+          );
+        })}
       </svg>
       <figcaption className="mx-auto mt-2 flex max-w-[520px] flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
         <span>node size = weekly downloads</span>
