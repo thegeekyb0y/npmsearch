@@ -27,8 +27,9 @@ vi.mock("../../app/lib/github", () => ({
 }));
 
 import {
+  CACHE_FRESH_TTL,
   CACHE_HARD_TTL,
-  cacheDelete,
+  CACHE_NEGATIVE_TTL,
   cacheGetEntry,
   cacheSet,
 } from "../../app/lib/cache";
@@ -76,8 +77,6 @@ beforeEach(() => {
   vi.mocked(cacheGetEntry).mockResolvedValue(null);
   vi.mocked(cacheSet).mockResolvedValue(undefined);
   vi.mocked(cacheSet).mockClear();
-  vi.mocked(cacheDelete).mockResolvedValue(undefined);
-  vi.mocked(cacheDelete).mockClear();
 });
 
 afterEach(() => {
@@ -136,12 +135,26 @@ describe("getPackage", () => {
     expect(urls.some((url) => url.includes("%40scope%2Fname"))).toBe(true);
   });
 
-  it("returns null for a missing package and clears any stale entry", async () => {
+  it("returns null for a missing package and caches a short negative entry", async () => {
     mockRegistry({ status: 404 });
 
     await expect(getPackage("missing-package")).resolves.toBeNull();
-    expect(cacheSet).not.toHaveBeenCalled();
-    expect(cacheDelete).toHaveBeenCalledWith("v1:package:missing-package");
+    expect(cacheSet).toHaveBeenCalledWith(
+      "v1:package:missing-package",
+      null,
+      CACHE_NEGATIVE_TTL,
+    );
+  });
+
+  it("serves a cached negative entry without calling the registry", async () => {
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: null,
+      cachedAt: Date.now(),
+    });
+
+    await expect(getPackage("missing-package")).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(0);
   });
 
   it("returns null for an invalid package name without fetching", async () => {
@@ -197,6 +210,51 @@ describe("getPackage", () => {
       expect.objectContaining({ name: "react" }),
       CACHE_HARD_TTL.package,
     );
+  });
+
+  it("refreshes a soft-stale package before rendering when fresh is requested", async () => {
+    const cached: PackageDetail = {
+      name: "react",
+      readmeTruncated: false,
+      keywords: [],
+      maintainers: [],
+      latestVersion: "19.3.0",
+      recentVersions: [],
+      downloadTrend: [],
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - (CACHE_FRESH_TTL.package + 1) * 1_000,
+    });
+    mockRegistry();
+
+    const data = await getPackage("react", { fresh: true });
+
+    expect(data?.latestVersion).toBe("19.3.1");
+    expect(backgroundTasks).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("falls back to the cached package when the fresh refresh fails", async () => {
+    const cached: PackageDetail = {
+      name: "react",
+      readmeTruncated: false,
+      keywords: [],
+      maintainers: [],
+      latestVersion: "19.3.1",
+      recentVersions: [],
+      downloadTrend: [],
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - (CACHE_FRESH_TTL.package + 1) * 1_000,
+    });
+    fetchMock.mockResolvedValue(new Response("boom", { status: 502 }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(getPackage("react", { fresh: true })).resolves.toEqual(cached);
+
+    warn.mockRestore();
   });
 
   it("treats a hard-expired package entry as a miss", async () => {

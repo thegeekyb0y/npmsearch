@@ -156,7 +156,10 @@ describe("searchPackages", () => {
       cachedAt: Date.now() - (CACHE_HARD_TTL.search + 1) * 1_000,
     });
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(fixture), { status: 200 }),
+      new Response(JSON.stringify(fixture), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
     );
 
     const data = await searchPackages("react");
@@ -174,7 +177,10 @@ describe("searchPackages", () => {
 
   it("throws a RegistryError for an unexpected payload", async () => {
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ objects: "not-an-array" }), { status: 200 }),
+      new Response(JSON.stringify({ objects: "not-an-array" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
     );
 
     await expect(searchPackages("react")).rejects.toBeInstanceOf(RegistryError);
@@ -184,7 +190,7 @@ describe("searchPackages", () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({ ...fixture, objects: [...fixture.objects, { package: {} }] }),
-        { status: 200 },
+        { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
 

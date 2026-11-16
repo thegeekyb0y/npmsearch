@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { getPackageAnalytics } from "@/app/lib/analytics";
 import { formatBytes } from "@/app/lib/format";
 import type { DependencyStatus, LatestVersionInfo } from "@/app/lib/types";
+import { IntentLink } from "./intent-link";
 import { RailSection } from "./rail-section";
 import { ShowMore } from "./show-more";
 
@@ -9,8 +9,9 @@ function DependencyRow({ dependency }: { dependency: DependencyStatus }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border-subtle py-2.5 last:border-b-0">
       <div className="min-w-0">
-        <Link
+        <IntentLink
           href={`/package/${encodeURIComponent(dependency.name)}`}
+          rel="nofollow"
           data-preview-title={dependency.name}
           data-preview-subtitle={
             dependency.latest
@@ -21,7 +22,7 @@ function DependencyRow({ dependency }: { dependency: DependencyStatus }) {
           className="block truncate font-mono text-[12px] text-text-primary transition-colors duration-150 ease-out hover:text-brand"
         >
           {dependency.name}
-        </Link>
+        </IntentLink>
         <p className="mt-0.5 mb-0 truncate font-mono text-[10px] text-text-muted">
           {dependency.range}
         </p>
@@ -55,7 +56,9 @@ export async function PackageAnalyticsRail({
   packageName: string;
   latest?: LatestVersionInfo;
 }) {
-  const analytics = await getPackageAnalytics(packageName, latest);
+  const analytics = await getPackageAnalytics(packageName, latest, {
+    fresh: true,
+  });
 
   if (!analytics) return null;
 

@@ -24,6 +24,15 @@ export const CACHE_HARD_TTL = {
   profile: 86_400,
 } as const;
 
+/** Missing or invalid packages are cached briefly so crawlers cannot storm the registry. */
+export const CACHE_NEGATIVE_TTL = 60;
+
+/** Only one refresh runs per key, across instances. */
+export const REFRESH_LOCK_TTL_SECONDS = 30;
+
+/** A failed refresh suppresses retries for ten minutes (or longer for `retry-after`). */
+export const REFRESH_FAILURE_TTL_SECONDS = 600;
+
 /** Backwards-compatible alias for the fresh window. */
 export const CACHE_TTL = CACHE_FRESH_TTL;
 
@@ -32,11 +41,17 @@ export type CacheEntry<T> = {
   cachedAt: number;
 };
 
+type CacheFailureContext = {
+  operation: string;
+  key?: string;
+  durationMs?: number;
+};
+
 const CACHE_TIMEOUT_MS = 1_500;
 const FAILURE_COOLDOWN_MS = 30_000;
 
 let unavailableUntil = 0;
-let warned = false;
+let loggedFailure = false;
 
 export function normalizeSearchInput(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase().slice(0, 200);
@@ -94,11 +109,30 @@ export function githubCacheKey(owner: string, repo: string): string {
   return `${CACHE_VERSION}:github:${owner.toLowerCase()}/${repo.toLowerCase()}`;
 }
 
-function markUnavailable(error: unknown) {
-  unavailableUntil = Date.now() + FAILURE_COOLDOWN_MS;
-  if (warned) return;
-  warned = true;
-  console.warn("Cache unavailable; continuing without it.", error);
+export function refreshLockKey(key: string): string {
+  return `lock:${key}`;
+}
+
+export function refreshFailureKey(key: string): string {
+  return `fail:${key}`;
+}
+
+function markUnavailable(error: unknown, context: CacheFailureContext) {
+  const now = Date.now();
+  const isNewEpisode = now >= unavailableUntil;
+
+  unavailableUntil = now + FAILURE_COOLDOWN_MS;
+
+  // Log one structured failure per cooldown window instead of every request.
+  if (loggedFailure && !isNewEpisode) return;
+  loggedFailure = true;
+
+  console.warn("Cache unavailable; continuing without it.", {
+    operation: context.operation,
+    key: context.key,
+    durationMs: context.durationMs,
+    error,
+  });
 }
 
 function isAvailable(): boolean {
@@ -109,7 +143,7 @@ function resolveClient() {
   try {
     return getRedis();
   } catch (error) {
-    markUnavailable(error);
+    markUnavailable(error, { operation: "client" });
     return null;
   }
 }
@@ -159,6 +193,9 @@ export function isExpired(
 /**
  * Cache failures are intentionally silent to callers: a missing or broken
  * Redis must degrade to a normal upstream request, never an error page.
+ *
+ * A stored `{ data: null }` entry is a real negative result, so callers can
+ * tell "cached miss" (`entry.data === null`) from "no entry" (`entry === null`).
  */
 export async function cacheGetEntry<T>(
   key: string,
@@ -166,12 +203,17 @@ export async function cacheGetEntry<T>(
   const redis = resolveClient();
   if (!redis || !isAvailable()) return null;
 
+  const startedAt = Date.now();
   let raw: unknown;
 
   try {
     raw = await withTimeout(redis.get<unknown>(key));
   } catch (error) {
-    markUnavailable(error);
+    markUnavailable(error, {
+      operation: "get",
+      key,
+      durationMs: Date.now() - startedAt,
+    });
     return null;
   }
 
@@ -205,11 +247,16 @@ export async function cacheSet<T>(
   if (!redis || !isAvailable()) return;
 
   const entry: CacheEntry<T> = { data, cachedAt: Date.now() };
+  const startedAt = Date.now();
 
   try {
     await withTimeout(redis.set(key, entry, { ex: ttlSeconds }));
   } catch (error) {
-    markUnavailable(error);
+    markUnavailable(error, {
+      operation: "set",
+      key,
+      durationMs: Date.now() - startedAt,
+    });
   }
 }
 
@@ -217,9 +264,109 @@ export async function cacheDelete(key: string): Promise<void> {
   const redis = resolveClient();
   if (!redis || !isAvailable()) return;
 
+  const startedAt = Date.now();
+
   try {
     await withTimeout(redis.del(key));
   } catch (error) {
-    markUnavailable(error);
+    markUnavailable(error, {
+      operation: "del",
+      key,
+      durationMs: Date.now() - startedAt,
+    });
+  }
+}
+
+/**
+ * Returns false when a refresh must not run: either the key is cooling down
+ * after a failure, or Redis is configured but failing. Redis being absent
+ * means nothing is cached, so refreshes are allowed.
+ */
+export async function cacheShouldRefresh(key: string): Promise<boolean> {
+  if (!isAvailable()) return false;
+
+  const redis = resolveClient();
+  if (!redis) return true;
+
+  const startedAt = Date.now();
+
+  try {
+    const marker = await withTimeout(redis.get(refreshFailureKey(key)));
+    return marker === null || marker === undefined;
+  } catch (error) {
+    markUnavailable(error, {
+      operation: "refresh-marker",
+      key,
+      durationMs: Date.now() - startedAt,
+    });
+    return false;
+  }
+}
+
+/**
+ * `SET lock:<key> 1 NX EX 30`: only one instance refreshes a key at a time.
+ * Returns false when another refresh holds the lock or Redis cannot confirm it.
+ */
+export async function cacheAcquireRefreshLock(key: string): Promise<boolean> {
+  if (!isAvailable()) return false;
+
+  const redis = resolveClient();
+  if (!redis) return true;
+
+  const startedAt = Date.now();
+
+  try {
+    const result = await withTimeout(
+      redis.set(refreshLockKey(key), 1, {
+        nx: true,
+        ex: REFRESH_LOCK_TTL_SECONDS,
+      }),
+    );
+    return result === "OK";
+  } catch (error) {
+    markUnavailable(error, {
+      operation: "refresh-lock",
+      key,
+      durationMs: Date.now() - startedAt,
+    });
+    return false;
+  }
+}
+
+export async function cacheReleaseRefreshLock(key: string): Promise<void> {
+  const redis = resolveClient();
+  if (!redis || !isAvailable()) return;
+
+  try {
+    await withTimeout(redis.del(refreshLockKey(key)));
+  } catch (error) {
+    markUnavailable(error, { operation: "refresh-unlock", key });
+  }
+}
+
+export async function cacheMarkRefreshFailure(
+  key: string,
+  ttlSeconds: number = REFRESH_FAILURE_TTL_SECONDS,
+): Promise<void> {
+  const redis = resolveClient();
+  if (!redis || !isAvailable()) return;
+
+  const ttl = Math.max(REFRESH_FAILURE_TTL_SECONDS, Math.ceil(ttlSeconds));
+
+  try {
+    await withTimeout(redis.set(refreshFailureKey(key), 1, { ex: ttl }));
+  } catch (error) {
+    markUnavailable(error, { operation: "refresh-failure", key });
+  }
+}
+
+export async function cacheClearRefreshFailure(key: string): Promise<void> {
+  const redis = resolveClient();
+  if (!redis || !isAvailable()) return;
+
+  try {
+    await withTimeout(redis.del(refreshFailureKey(key)));
+  } catch (error) {
+    markUnavailable(error, { operation: "refresh-recover", key });
   }
 }

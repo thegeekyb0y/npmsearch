@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { runInBackground } from "./background";
 import {
+  PAGE_REVALIDATE_SECONDS,
+  revalidationSafeWindow,
+} from "./freshness";
+import {
   CACHE_FRESH_TTL,
   CACHE_HARD_TTL,
   analyticsCacheKey,
@@ -9,7 +13,8 @@ import {
   isExpired,
   isFresh,
 } from "./cache";
-import { normalizePackageName } from "./registry";
+import { normalizePackageName, isValidPackageName } from "./registry";
+import { coalesce } from "./in-flight";
 import { isOutdated } from "./semver";
 import type {
   DependencyStatus,
@@ -24,6 +29,8 @@ const TOTAL_BUDGET_MS = 2_000;
 const MAX_PACKAGES = 60;
 const MAX_DEPTH = 3;
 const CONCURRENCY = 8;
+const REGISTRY_REVALIDATE_SECONDS = PAGE_REVALIDATE_SECONDS;
+const REGISTRY_USER_AGENT = "npmsearch/0.1 (+https://npmsearch121.vercel.app)";
 
 const manifestSchema = z.object({
   name: z.string().min(1),
@@ -81,9 +88,12 @@ async function fetchManifest(name: string): Promise<Manifest | null> {
     response = await fetch(
       `${REGISTRY_BASE}/${encodeURIComponent(name)}/latest`,
       {
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "User-Agent": REGISTRY_USER_AGENT,
+        },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        cache: "no-store",
+        next: { revalidate: REGISTRY_REVALIDATE_SECONDS },
       },
     );
   } catch {
@@ -235,21 +245,46 @@ async function refreshAnalytics(
 export async function getPackageAnalytics(
   packageName: string,
   latest: LatestVersionInfo | undefined,
+  options: { fresh?: boolean } = {},
 ): Promise<PackageAnalytics | undefined> {
   if (!latest) return undefined;
 
-  const cacheKey = analyticsCacheKey(packageName);
-  const entry = await cacheGetEntry<PackageAnalytics>(cacheKey);
+  const normalized = normalizePackageName(packageName);
 
-  if (entry && !isExpired(entry, CACHE_HARD_TTL.analytics)) {
-    if (!isFresh(entry, CACHE_FRESH_TTL.analytics)) {
-      runInBackground(cacheKey, async () => {
-        await refreshAnalytics(packageName, latest, cacheKey);
-      });
+  if (!isValidPackageName(normalized)) return undefined;
+
+  const cacheKey = analyticsCacheKey(normalized);
+
+  return coalesce(cacheKey, async () => {
+    const entry = await cacheGetEntry<PackageAnalytics>(cacheKey);
+
+    if (entry && !isExpired(entry, CACHE_HARD_TTL.analytics)) {
+      const softTtl = options.fresh
+        ? revalidationSafeWindow(CACHE_FRESH_TTL.analytics)
+        : CACHE_FRESH_TTL.analytics;
+
+      if (!isFresh(entry, softTtl)) {
+        const refresh = () =>
+          refreshAnalytics(normalized, latest, cacheKey);
+
+        if (options.fresh) {
+          try {
+            return await refresh();
+          } catch (error) {
+            console.warn(
+              "Analytics revalidation failed; serving the cached value.",
+              { key: cacheKey, error },
+            );
+            return entry.data;
+          }
+        }
+
+        runInBackground(cacheKey, refresh);
+      }
+
+      return entry.data;
     }
 
-    return entry.data;
-  }
-
-  return refreshAnalytics(packageName, latest, cacheKey);
+    return refreshAnalytics(normalized, latest, cacheKey);
+  });
 }

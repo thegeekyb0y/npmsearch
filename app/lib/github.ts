@@ -11,10 +11,14 @@ import {
   isFresh,
 } from "./cache";
 import { getGithubToken } from "./env";
+import { revalidationSafeWindow } from "./freshness";
+import { PAGE_REVALIDATE_SECONDS } from "./freshness";
 import type { GithubStats } from "./types";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const REQUEST_TIMEOUT_MS = 8_000;
+const REVALIDATE_SECONDS = PAGE_REVALIDATE_SECONDS;
+const USER_AGENT = "npmsearch/0.1 (+https://npmsearch121.vercel.app)";
 
 export type GithubRepoRef = {
   owner: string;
@@ -110,7 +114,7 @@ export async function getGithubStats(
   const entry = await cacheGetEntry<GithubStats>(cacheKey);
 
   if (entry && !isExpired(entry, CACHE_HARD_TTL.github)) {
-    if (!isFresh(entry, CACHE_FRESH_TTL.github)) {
+    if (!isFresh(entry, revalidationSafeWindow(CACHE_FRESH_TTL.github))) {
       runInBackground(cacheKey, async () => {
         await refreshGithub(ref, token, cacheKey);
       });
@@ -127,6 +131,7 @@ async function refreshGithub(
   token: string,
   cacheKey: string,
 ): Promise<GithubStats | null> {
+  const startedAt = Date.now();
   let response: Response;
 
   try {
@@ -136,22 +141,30 @@ async function refreshGithub(
         headers: {
           Accept: "application/vnd.github+json",
           Authorization: `Bearer ${token}`,
-          "User-Agent": "npmsearch",
+          "User-Agent": USER_AGENT,
           "X-GitHub-Api-Version": "2022-11-28",
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        cache: "no-store",
+        next: { revalidate: REVALIDATE_SECONDS },
       },
     );
-  } catch {
+  } catch (error) {
+    console.warn("GitHub stats request failed.", {
+      repository: `${ref.owner}/${ref.repo}`,
+      durationMs: Date.now() - startedAt,
+      error,
+    });
     return null;
   }
 
   if (!response.ok) {
     if (response.status !== 404) {
-      console.warn(
-        `GitHub stats unavailable for ${ref.owner}/${ref.repo}: ${response.status}`,
-      );
+      console.warn("GitHub stats unavailable.", {
+        repository: `${ref.owner}/${ref.repo}`,
+        status: response.status,
+        contentType: response.headers.get("content-type"),
+        durationMs: Date.now() - startedAt,
+      });
     } else {
       await cacheDelete(cacheKey);
     }
@@ -162,12 +175,23 @@ async function refreshGithub(
 
   try {
     json = await response.json();
-  } catch {
+  } catch (error) {
+    console.warn("GitHub stats returned invalid JSON.", {
+      repository: `${ref.owner}/${ref.repo}`,
+      durationMs: Date.now() - startedAt,
+      error,
+    });
     return null;
   }
 
   const parsed = githubRepoSchema.safeParse(json);
-  if (!parsed.success) return null;
+  if (!parsed.success) {
+    console.warn("Unexpected GitHub repository response.", {
+      repository: `${ref.owner}/${ref.repo}`,
+      durationMs: Date.now() - startedAt,
+    });
+    return null;
+  }
 
   const data: GithubStats = {
     stars: parsed.data.stargazers_count ?? undefined,

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CACHE_FRESH_TTL,
   CACHE_HARD_TTL,
+  CACHE_NEGATIVE_TTL,
   CACHE_TTL,
   CACHE_VERSION,
   downloadsCacheKey,
@@ -80,6 +81,21 @@ describe("cacheGetEntry", () => {
     const { cacheGetEntry } = await loadCache({ get, set, del });
 
     await expect(cacheGetEntry("key")).resolves.toBeNull();
+  });
+
+  it("returns a cached null so callers can tell it apart from a miss", async () => {
+    const cachedAt = Date.now();
+    get.mockResolvedValue({ data: null, cachedAt });
+    const { cacheGetEntry } = await loadCache({ get, set, del });
+
+    await expect(cacheGetEntry("key")).resolves.toEqual({ data: null, cachedAt });
+    await expect(cacheGetEntry("key")).resolves.not.toBeNull();
+  });
+});
+
+describe("negative caching", () => {
+  it("keeps missing packages out of the registry for one minute", () => {
+    expect(CACHE_NEGATIVE_TTL).toBe(60);
   });
 });
 
@@ -177,5 +193,70 @@ describe("cacheDelete", () => {
 
     await cacheDelete("key");
     expect(del).toHaveBeenCalledWith("key");
+  });
+});
+
+describe("refresh guards", () => {
+  it("allows a refresh when no failure marker exists", async () => {
+    get.mockResolvedValue(null);
+    const { cacheShouldRefresh } = await loadCache({ get, set, del });
+
+    await expect(cacheShouldRefresh("v1:overview:react")).resolves.toBe(true);
+    expect(get).toHaveBeenCalledWith("fail:v1:overview:react");
+  });
+
+  it("suppresses the refresh while the failure marker exists", async () => {
+    get.mockResolvedValue(1);
+    const { cacheShouldRefresh } = await loadCache({ get, set, del });
+
+    await expect(cacheShouldRefresh("key")).resolves.toBe(false);
+  });
+
+  it("suppresses the refresh when Redis fails", async () => {
+    get.mockRejectedValue(new Error("ERR DB capacity"));
+    const { cacheShouldRefresh } = await loadCache({ get, set, del });
+
+    await expect(cacheShouldRefresh("key")).resolves.toBe(false);
+  });
+
+  it("acquires the lock with NX and a 30 second expiry", async () => {
+    set.mockResolvedValue("OK");
+    const { cacheAcquireRefreshLock } = await loadCache({ get, set, del });
+
+    await expect(cacheAcquireRefreshLock("key")).resolves.toBe(true);
+    expect(set).toHaveBeenCalledWith("lock:key", 1, { nx: true, ex: 30 });
+  });
+
+  it("does not acquire a lock another refresh holds", async () => {
+    set.mockResolvedValue(null);
+    const { cacheAcquireRefreshLock } = await loadCache({ get, set, del });
+
+    await expect(cacheAcquireRefreshLock("key")).resolves.toBe(false);
+  });
+
+  it("does not acquire a lock when Redis fails", async () => {
+    set.mockRejectedValue(new Error("ERR DB capacity"));
+    const { cacheAcquireRefreshLock } = await loadCache({ get, set, del });
+
+    await expect(cacheAcquireRefreshLock("key")).resolves.toBe(false);
+  });
+
+  it("marks failures for at least ten minutes, longer for retry-after", async () => {
+    set.mockResolvedValue("OK");
+    const { cacheMarkRefreshFailure } = await loadCache({ get, set, del });
+
+    await cacheMarkRefreshFailure("key", 900);
+    expect(set).toHaveBeenCalledWith("fail:key", 1, { ex: 900 });
+
+    await cacheMarkRefreshFailure("key", 30);
+    expect(set).toHaveBeenLastCalledWith("fail:key", 1, { ex: 600 });
+  });
+
+  it("allows refreshes when Redis is not configured", async () => {
+    const { cacheAcquireRefreshLock, cacheShouldRefresh } =
+      await loadCache(null);
+
+    await expect(cacheShouldRefresh("key")).resolves.toBe(true);
+    await expect(cacheAcquireRefreshLock("key")).resolves.toBe(true);
   });
 });

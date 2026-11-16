@@ -20,6 +20,7 @@ vi.mock("../../app/lib/cache", async (importOriginal) => {
 });
 
 import {
+  CACHE_FRESH_TTL,
   CACHE_HARD_TTL,
   cacheGetEntry,
   cacheSet,
@@ -243,6 +244,25 @@ describe("getPackageAnalytics", () => {
     expect(backgroundTasks).toHaveLength(1);
 
     await backgroundTasks[0]();
+    expect(cacheSet).toHaveBeenCalled();
+  });
+
+  it("refreshes soft-stale analytics before rendering when fresh is requested", async () => {
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: {
+        installSize: { bytes: 10, packages: 1, truncated: false },
+        dependencies: [],
+        outdatedCount: 0,
+        moduleFormats: { esm: true, cjs: false, types: false },
+      },
+      cachedAt: Date.now() - (CACHE_FRESH_TTL.analytics + 1) * 1_000,
+    });
+    mockManifests();
+
+    const data = await getPackageAnalytics("root", latest, { fresh: true });
+
+    expect(data?.installSize?.bytes).toBe(2000);
+    expect(backgroundTasks).toHaveLength(0);
     expect(cacheSet).toHaveBeenCalled();
   });
 

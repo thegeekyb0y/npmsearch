@@ -26,8 +26,9 @@ vi.mock("../../app/lib/github", () => ({
 }));
 
 import {
+  CACHE_FRESH_TTL,
   CACHE_HARD_TTL,
-  cacheDelete,
+  CACHE_NEGATIVE_TTL,
   cacheGetEntry,
   cacheSet,
 } from "../../app/lib/cache";
@@ -35,6 +36,7 @@ import {
   RegistryError,
   getPackageOverview,
   getPackageVersionOverview,
+  isValidPackageName,
   isValidVersion,
 } from "../../app/lib/registry";
 import type { PackageOverview } from "../../app/lib/types";
@@ -98,8 +100,6 @@ beforeEach(() => {
   vi.mocked(cacheGetEntry).mockResolvedValue(null);
   vi.mocked(cacheSet).mockResolvedValue(undefined);
   vi.mocked(cacheSet).mockClear();
-  vi.mocked(cacheDelete).mockResolvedValue(undefined);
-  vi.mocked(cacheDelete).mockClear();
 });
 
 afterEach(() => {
@@ -167,17 +167,37 @@ describe("getPackageOverview", () => {
     expect(urls.some((url) => url.includes("%40scope%2Fname/latest"))).toBe(true);
   });
 
-  it("returns null for a missing package and clears stale data", async () => {
+  it("returns null for a missing package and caches a short negative entry", async () => {
     mockRegistry(null);
 
     await expect(getPackageOverview("missing-package")).resolves.toBeNull();
-    expect(cacheSet).not.toHaveBeenCalled();
-    expect(cacheDelete).toHaveBeenCalledWith("v1:overview:missing-package");
+    expect(cacheSet).toHaveBeenCalledWith(
+      "v1:overview:missing-package",
+      null,
+      CACHE_NEGATIVE_TTL,
+    );
+    expect(cacheSet).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves a cached negative entry without calling the registry", async () => {
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: null,
+      cachedAt: Date.now(),
+    });
+
+    await expect(getPackageOverview("missing-package")).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(backgroundTasks).toHaveLength(0);
   });
 
   it("returns null for an invalid name without fetching", async () => {
     await expect(getPackageOverview("not a valid name!")).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects names longer than 214 characters", () => {
+    expect(isValidPackageName("a".repeat(214))).toBe(true);
+    expect(isValidPackageName("a".repeat(215))).toBe(false);
   });
 
   it("serves a fresh cached overview without fetching", async () => {
@@ -224,6 +244,50 @@ describe("getPackageOverview", () => {
     );
   });
 
+  it("refreshes a soft-stale overview before rendering when fresh is requested", async () => {
+    const cached: PackageOverview = {
+      name: "react",
+      keywords: [],
+      maintainers: [],
+      latestVersion: "18.0.0",
+      downloadTrend: [],
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - (CACHE_FRESH_TTL.overview + 1) * 1_000,
+    });
+    mockRegistry();
+
+    const data = await getPackageOverview("react", { fresh: true });
+
+    expect(data?.latestVersion).toBe("19.3.1");
+    expect(backgroundTasks).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("falls back to the cached overview when the fresh refresh fails", async () => {
+    const cached: PackageOverview = {
+      name: "react",
+      keywords: [],
+      maintainers: [],
+      latestVersion: "19.3.1",
+      downloadTrend: [],
+    };
+    vi.mocked(cacheGetEntry).mockResolvedValue({
+      data: cached,
+      cachedAt: Date.now() - (CACHE_FRESH_TTL.overview + 1) * 1_000,
+    });
+    fetchMock.mockResolvedValue(new Response("boom", { status: 502 }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      getPackageOverview("react", { fresh: true }),
+    ).resolves.toEqual(cached);
+    expect(backgroundTasks).toHaveLength(0);
+
+    warn.mockRestore();
+  });
+
   it("keeps the overview when downloads fail", async () => {
     mockRegistry(latestManifest, null);
 
@@ -240,6 +304,78 @@ describe("getPackageOverview", () => {
     await expect(getPackageOverview("react")).rejects.toBeInstanceOf(
       RegistryError,
     );
+  });
+
+  it("coalesces concurrent misses into one fetch", async () => {
+    mockRegistry();
+
+    const results = await Promise.all([
+      getPackageOverview("react"),
+      getPackageOverview("react"),
+      getPackageOverview("react"),
+      getPackageOverview("react"),
+      getPackageOverview("react"),
+    ]);
+
+    expect(results.every((entry) => entry?.name === "react")).toBe(true);
+
+    const urls = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(urls.filter((url) => url.endsWith("/latest"))).toHaveLength(1);
+    expect(
+      urls.filter((url) => url.includes("/downloads/range/")),
+    ).toHaveLength(1);
+  });
+});
+
+describe("registry request hygiene", () => {
+  it("sends a descriptive User-Agent", async () => {
+    mockRegistry();
+
+    await getPackageOverview("react");
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["User-Agent"]).toContain("npmsearch");
+  });
+
+  it("reports status, content-type, retry-after and package name on 429", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("slow down", {
+        status: 429,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Retry-After": "900",
+        },
+      }),
+    );
+
+    const error = await getPackageOverview("react").catch(
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(RegistryError);
+    expect(error).toMatchObject({
+      packageName: "react",
+      status: 429,
+      contentType: "text/plain; charset=utf-8",
+      retryAfterSeconds: 900,
+    });
+  });
+
+  it("rejects a non-JSON 200 before parsing", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("<html>maintenance</html>", {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+
+    const error = await getPackageOverview("react").catch(
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(RegistryError);
+    expect((error as RegistryError).contentType).toBe("text/html");
   });
 });
 
@@ -278,13 +414,17 @@ describe("getPackageVersionOverview", () => {
     );
   });
 
-  it("returns null for a missing version and clears stale data", async () => {
+  it("returns null for a missing version and caches a negative entry", async () => {
     mockRegistry(null);
 
     await expect(
       getPackageVersionOverview("react", "99.0.0"),
     ).resolves.toBeNull();
-    expect(cacheDelete).toHaveBeenCalledWith("v1:overview:react@99.0.0");
+    expect(cacheSet).toHaveBeenCalledWith(
+      "v1:overview:react@99.0.0",
+      null,
+      CACHE_NEGATIVE_TTL,
+    );
   });
 
   it("rejects an invalid version without fetching", async () => {

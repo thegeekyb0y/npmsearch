@@ -4,6 +4,7 @@ import {
   House,
   Package2,
 } from "lucide-react";
+import { unstable_noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { ChartFocusButton } from "@/app/components/chart-focus-button";
@@ -29,6 +30,7 @@ import { formatBytes } from "@/app/lib/format";
 import {
   getPackageOverview,
   getPackageVersionOverview,
+  RegistryError,
 } from "@/app/lib/registry";
 import type { MetaItem, TabItem } from "@/app/lib/types";
 
@@ -118,9 +120,19 @@ export async function PackageView({
 
   try {
     data = version
-      ? await getPackageVersionOverview(name, version)
-      : await getPackageOverview(name);
-  } catch {
+      ? await getPackageVersionOverview(name, version, { fresh: true })
+      : await getPackageOverview(name, { fresh: true });
+  } catch (error) {
+    // Never let a transient registry failure be baked into the ISR cache.
+    unstable_noStore();
+
+    console.error("Package page render failed.", {
+      package: name,
+      version,
+      status: error instanceof RegistryError ? error.status : undefined,
+      error,
+    });
+
     return (
       <AppShell>
         <PageContainer className="py-6">

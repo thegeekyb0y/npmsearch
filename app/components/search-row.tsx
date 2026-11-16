@@ -1,10 +1,10 @@
-import Link from "next/link";
 import type {
   FocusEventHandler,
   KeyboardEventHandler,
   Ref,
 } from "react";
 import type { PackageSummary } from "@/app/lib/types";
+import { IntentLink } from "./intent-link";
 import { ExactBadge } from "./ui";
 
 function formatDate(value?: string) {
@@ -34,9 +34,9 @@ export function SearchRow({
       : undefined;
 
   return (
-    <Link
+    <IntentLink
       ref={linkRef}
-      href={`/package/${item.name}`}
+      href={`/package/${encodeURIComponent(item.name)}`}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
       data-preview-title={item.name}
@@ -72,6 +72,6 @@ export function SearchRow({
           </div>
         </div>
       </div>
-    </Link>
+    </IntentLink>
   );
 }

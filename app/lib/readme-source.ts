@@ -8,7 +8,8 @@ import {
   isFresh,
   readmeCacheKey,
 } from "./cache";
-import { README_LIMIT } from "./registry";
+import { PAGE_REVALIDATE_SECONDS } from "./freshness";
+import { README_LIMIT, isValidPackageName, isValidVersion, normalizePackageName } from "./registry";
 
 const README_FILES = [
   "README.md",
@@ -21,6 +22,8 @@ const README_FILES = [
 const README_FETCH_TIMEOUT_MS = 3_000;
 const README_BUDGET_MS = 4_000;
 const MAX_DOWNLOAD_BYTES = 512_000;
+const README_REVALIDATE_SECONDS = PAGE_REVALIDATE_SECONDS;
+const README_USER_AGENT = "npmsearch/0.1 (+https://npmsearch121.vercel.app)";
 
 type CachedReadme = {
   readme: string | null;
@@ -46,9 +49,12 @@ async function fetchReadmeFile(
     response = await fetch(
       `https://cdn.jsdelivr.net/npm/${name}@${encodeURIComponent(version)}/${file}`,
       {
-        headers: { Accept: "text/plain" },
+        headers: {
+          Accept: "text/plain",
+          "User-Agent": README_USER_AGENT,
+        },
         signal: AbortSignal.timeout(timeoutMs),
-        cache: "no-store",
+        next: { revalidate: README_REVALIDATE_SECONDS },
       },
     );
   } catch {
@@ -124,13 +130,20 @@ export async function getReadmeFallback(
   name: string,
   version: string,
 ): Promise<ReadmeSource | null> {
-  const cacheKey = readmeCacheKey(name, version);
+  const normalized = normalizePackageName(name);
+  const selector = version.trim();
+
+  if (!isValidPackageName(normalized) || !isValidVersion(selector)) {
+    return null;
+  }
+
+  const cacheKey = readmeCacheKey(normalized, selector);
   const entry = await cacheGetEntry<CachedReadme>(cacheKey);
 
   if (entry && !isExpired(entry, CACHE_HARD_TTL.readme)) {
     if (!isFresh(entry, CACHE_FRESH_TTL.readme)) {
       runInBackground(cacheKey, async () => {
-        await refreshReadmeFallback(name, version, cacheKey);
+        await refreshReadmeFallback(normalized, selector, cacheKey);
       });
     }
 
@@ -139,5 +152,5 @@ export async function getReadmeFallback(
       : null;
   }
 
-  return refreshReadmeFallback(name, version, cacheKey);
+  return refreshReadmeFallback(normalized, selector, cacheKey);
 }
