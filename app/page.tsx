@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "./components/intent-link";
 import { PageContainer } from "./components/ui";
 
 const suggestedPackages = ["react", "next", "typescript", "tailwindcss", "vite", "zod"];
@@ -51,12 +51,12 @@ export default function HomePage() {
           <ul className="m-0 flex list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
             {suggestedPackages.map((pkg) => (
               <li key={pkg}>
-                <Link
-                  href={`/package/${pkg}`}
+                <IntentLink
+                  href={`/package/${encodeURIComponent(pkg)}`}
                   className="inline-flex min-h-11 items-center font-mono text-[13px] text-text-secondary transition-colors duration-150 ease-out hover:text-brand"
                 >
                   <span className="link-underline">{pkg}</span>
-                </Link>
+                </IntentLink>
               </li>
             ))}
           </ul>

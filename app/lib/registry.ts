@@ -2,8 +2,8 @@ import { z } from "zod";
 import {
   CACHE_FRESH_TTL,
   CACHE_HARD_TTL,
+  CACHE_NEGATIVE_TTL,
   DEFAULT_SEARCH_PAGE_SIZE,
-  cacheDelete,
   cacheGetEntry,
   cacheSet,
   isExpired,
@@ -15,7 +15,12 @@ import {
   versionOverviewCacheKey,
 } from "./cache";
 import { runInBackground } from "./background";
+import {
+  PAGE_REVALIDATE_SECONDS,
+  revalidationSafeWindow,
+} from "./freshness";
 import { getGithubStats } from "./github";
+import { coalesce } from "./in-flight";
 import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "./search-query";
 import type {
   DownloadPoint,
@@ -30,21 +35,150 @@ import type {
 const REGISTRY_BASE = "https://registry.npmjs.org";
 const DOWNLOADS_BASE = "https://api.npmjs.org";
 const REQUEST_TIMEOUT_MS = 8_000;
+const REGISTRY_REVALIDATE_SECONDS = PAGE_REVALIDATE_SECONDS;
+const REGISTRY_USER_AGENT = "npmsearch/0.1 (+https://npmsearch121.vercel.app)";
 
 export const MAX_SEARCH_PAGE_SIZE = 50;
 export const MAX_SEARCH_FROM = 1_000;
 export const README_LIMIT = 256_000;
+export const MAX_PACKAGE_NAME_LENGTH = 214;
 
 const PACKAGE_NAME_PATTERN =
   /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
+type RegistryErrorContext = {
+  packageName?: string;
+  status?: number;
+  contentType?: string | null;
+  retryAfterSeconds?: number;
+  durationMs?: number;
+};
+
 export class RegistryError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
+  readonly packageName?: string;
+  readonly status?: number;
+  readonly contentType?: string | null;
+  readonly retryAfterSeconds?: number;
+  readonly durationMs?: number;
+
+  constructor(message: string, context: RegistryErrorContext = {}) {
     super(message);
     this.name = "RegistryError";
+    this.packageName = context.packageName;
+    this.status = context.status;
+    this.contentType = context.contentType;
+    this.retryAfterSeconds = context.retryAfterSeconds;
+    this.durationMs = context.durationMs;
+  }
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+
+  const seconds = Number(value);
+
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.max(1, Math.ceil(seconds));
+  }
+
+  const date = Date.parse(value);
+
+  if (!Number.isFinite(date)) return undefined;
+
+  return Math.max(1, Math.ceil((date - Date.now()) / 1_000));
+}
+
+function isJsonContentType(value: string | null): boolean {
+  return (value ?? "").toLowerCase().includes("json");
+}
+
+function registryHeaders(accept: string): HeadersInit {
+  return { Accept: accept, "User-Agent": REGISTRY_USER_AGENT };
+}
+
+type RegistryResponse =
+  | { kind: "ok"; json: unknown }
+  | { kind: "not-found" };
+
+/**
+ * Single registry request path: descriptive UA, hard timeout, content-type
+ * validation before parsing, and a `RegistryError` rich enough to log and to
+ * derive a failure cooldown from `retry-after`.
+ */
+async function fetchRegistryJson(
+  url: string,
+  context: { packageName?: string; resource: string; revalidate: number },
+): Promise<RegistryResponse> {
+  const startedAt = Date.now();
+  const requestInit = {
+    headers: registryHeaders("application/json"),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  };
+  let response: Response;
+
+  try {
+    response = await fetch(
+      url,
+      context.revalidate > 0
+        ? { ...requestInit, next: { revalidate: context.revalidate } }
+        : { ...requestInit, cache: "no-store" },
+    );
+  } catch (error) {
+    const reason =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+    throw new RegistryError(
+      `Unable to reach the npm registry for ${context.resource} (${reason})`,
+      {
+        packageName: context.packageName,
+        durationMs: Date.now() - startedAt,
+      },
+    );
+  }
+
+  const contentType = response.headers.get("content-type");
+  const retryAfterSeconds = parseRetryAfter(
+    response.headers.get("retry-after"),
+  );
+
+  if (response.status === 404) {
+    return { kind: "not-found" };
+  }
+
+  if (!response.ok) {
+    throw new RegistryError(
+      `Registry ${context.resource} request failed with status ${response.status}`,
+      {
+        packageName: context.packageName,
+        status: response.status,
+        contentType,
+        retryAfterSeconds,
+        durationMs: Date.now() - startedAt,
+      },
+    );
+  }
+
+  if (!isJsonContentType(contentType)) {
+    throw new RegistryError(
+      `Registry returned a non-JSON response for ${context.resource}`,
+      {
+        packageName: context.packageName,
+        status: response.status,
+        contentType,
+        durationMs: Date.now() - startedAt,
+      },
+    );
+  }
+
+  try {
+    return { kind: "ok", json: await response.json() };
+  } catch {
+    throw new RegistryError("Registry returned invalid JSON", {
+      packageName: context.packageName,
+      status: response.status,
+      contentType,
+      durationMs: Date.now() - startedAt,
+    });
   }
 }
 
@@ -99,7 +233,11 @@ export function normalizePackageName(name: string): string {
 }
 
 export function isValidPackageName(name: string): boolean {
-  return PACKAGE_NAME_PATTERN.test(name);
+  return (
+    name.length > 0 &&
+    name.length <= MAX_PACKAGE_NAME_LENGTH &&
+    PACKAGE_NAME_PATTERN.test(name)
+  );
 }
 
 export function clampSearchParams(input: { from?: number; size?: number }): {
@@ -153,34 +291,18 @@ async function refreshSearch(
   size: number,
   cacheKey: string,
 ): Promise<SearchResults> {
-  let response: Response;
+  const result = await fetchRegistryJson(buildSearchUrl(normalized, from, size), {
+    resource: "search",
+    // Search has a 60s freshness contract; the Next Data Cache must not
+    // outlive it.
+    revalidate: 0,
+  });
 
-  try {
-    response = await fetch(buildSearchUrl(normalized, from, size), {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      cache: "no-store",
-    });
-  } catch {
-    throw new RegistryError("Unable to reach the npm registry");
+  if (result.kind === "not-found") {
+    throw new RegistryError("Registry search returned 404", { status: 404 });
   }
 
-  if (!response.ok) {
-    throw new RegistryError(
-      `Registry search failed with status ${response.status}`,
-      response.status,
-    );
-  }
-
-  let json: unknown;
-
-  try {
-    json = await response.json();
-  } catch {
-    throw new RegistryError("Registry returned invalid JSON");
-  }
-
-  const parsed = searchResponseSchema.safeParse(json);
+  const parsed = searchResponseSchema.safeParse(result.json);
 
   if (!parsed.success) {
     throw new RegistryError("Unexpected search response from the registry");
@@ -396,39 +518,23 @@ function buildDownloadTrend(
 }
 
 async function fetchPackument(name: string): Promise<Packument | null> {
-  let response: Response;
+  const result = await fetchRegistryJson(
+    `${REGISTRY_BASE}/${encodeURIComponent(name)}`,
+    {
+      packageName: name,
+      resource: "package",
+      revalidate: REGISTRY_REVALIDATE_SECONDS,
+    },
+  );
 
-  try {
-    response = await fetch(`${REGISTRY_BASE}/${encodeURIComponent(name)}`, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      cache: "no-store",
-    });
-  } catch {
-    throw new RegistryError("Unable to reach the npm registry");
-  }
+  if (result.kind === "not-found") return null;
 
-  if (response.status === 404) return null;
-
-  if (!response.ok) {
-    throw new RegistryError(
-      `Registry package request failed with status ${response.status}`,
-      response.status,
-    );
-  }
-
-  let json: unknown;
-
-  try {
-    json = await response.json();
-  } catch {
-    throw new RegistryError("Registry returned invalid JSON");
-  }
-
-  const parsed = packumentSchema.safeParse(json);
+  const parsed = packumentSchema.safeParse(result.json);
 
   if (!parsed.success) {
-    throw new RegistryError("Unexpected package response from the registry");
+    throw new RegistryError("Unexpected package response from the registry", {
+      packageName: name,
+    });
   }
 
   return parsed.data;
@@ -437,21 +543,29 @@ async function fetchPackument(name: string): Promise<Packument | null> {
 async function fetchDownloads(
   name: string,
 ): Promise<z.infer<typeof downloadsRangeSchema> | null> {
+  const startedAt = Date.now();
+
   try {
-    const response = await fetch(
+    const result = await fetchRegistryJson(
       `${DOWNLOADS_BASE}/downloads/range/last-month/${encodeURIComponent(name)}`,
       {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        cache: "no-store",
+        packageName: name,
+        resource: "downloads",
+        revalidate: REGISTRY_REVALIDATE_SECONDS,
       },
     );
 
-    if (!response.ok) return null;
+    if (result.kind === "not-found") return null;
 
-    const parsed = downloadsRangeSchema.safeParse(await response.json());
+    const parsed = downloadsRangeSchema.safeParse(result.json);
     return parsed.success ? parsed.data : null;
-  } catch {
+  } catch (error) {
+    console.warn("Download stats unavailable.", {
+      packageName: name,
+      durationMs: Date.now() - startedAt,
+      status: error instanceof RegistryError ? error.status : undefined,
+      error,
+    });
     return null;
   }
 }
@@ -460,42 +574,23 @@ async function fetchManifest(
   name: string,
   selector: string,
 ): Promise<LatestManifest | null> {
-  let response: Response;
+  const result = await fetchRegistryJson(
+    `${REGISTRY_BASE}/${encodeURIComponent(name)}/${encodeURIComponent(selector)}`,
+    {
+      packageName: name,
+      resource: "manifest",
+      revalidate: REGISTRY_REVALIDATE_SECONDS,
+    },
+  );
 
-  try {
-    response = await fetch(
-      `${REGISTRY_BASE}/${encodeURIComponent(name)}/${encodeURIComponent(selector)}`,
-      {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        cache: "no-store",
-      },
-    );
-  } catch {
-    throw new RegistryError("Unable to reach the npm registry");
-  }
+  if (result.kind === "not-found") return null;
 
-  if (response.status === 404) return null;
-
-  if (!response.ok) {
-    throw new RegistryError(
-      `Registry package request failed with status ${response.status}`,
-      response.status,
-    );
-  }
-
-  let json: unknown;
-
-  try {
-    json = await response.json();
-  } catch {
-    throw new RegistryError("Registry returned invalid JSON");
-  }
-
-  const parsed = latestManifestSchema.safeParse(json);
+  const parsed = latestManifestSchema.safeParse(result.json);
 
   if (!parsed.success) {
-    throw new RegistryError("Unexpected package response from the registry");
+    throw new RegistryError("Unexpected package response from the registry", {
+      packageName: name,
+    });
   }
 
   return parsed.data;
@@ -556,7 +651,7 @@ async function refreshOverview(
   ]);
 
   if (!manifest) {
-    await cacheDelete(cacheKey);
+    await cacheSet(cacheKey, null, CACHE_NEGATIVE_TTL);
     return null;
   }
 
@@ -567,8 +662,39 @@ async function refreshOverview(
   return data;
 }
 
+export type LoadOptions = {
+  /**
+   * Used by ISR regeneration: refresh the soft-stale entry before rendering
+   * instead of serving it and refreshing after the response. Falls back to the
+   * cached value if the refresh fails, so output never depends on the registry.
+   */
+  fresh?: boolean;
+};
+
+async function refreshOrReuse<T>(
+  key: string,
+  task: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  const startedAt = Date.now();
+
+  try {
+    return await task();
+  } catch (error) {
+    console.warn("Revalidation refresh failed; serving the cached value.", {
+      key,
+      durationMs: Date.now() - startedAt,
+      status: error instanceof RegistryError ? error.status : undefined,
+      error,
+    });
+
+    return fallback;
+  }
+}
+
 export async function getPackageOverview(
   name: string,
+  options: LoadOptions = {},
 ): Promise<PackageOverview | null> {
   const normalized = normalizePackageName(name);
 
@@ -577,19 +703,32 @@ export async function getPackageOverview(
   }
 
   const cacheKey = overviewCacheKey(normalized);
-  const entry = await cacheGetEntry<PackageOverview>(cacheKey);
 
-  if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
-    if (!isFresh(entry, CACHE_FRESH_TTL.overview)) {
-      runInBackground(cacheKey, async () => {
-        await refreshOverview(normalized, cacheKey, "latest");
-      });
+  return coalesce(cacheKey, async () => {
+    const entry = await cacheGetEntry<PackageOverview | null>(cacheKey);
+
+    if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
+      if (entry.data === null) return null;
+
+      const softTtl = options.fresh
+        ? revalidationSafeWindow(CACHE_FRESH_TTL.overview)
+        : CACHE_FRESH_TTL.overview;
+
+      if (!isFresh(entry, softTtl)) {
+        const refresh = () => refreshOverview(normalized, cacheKey, "latest");
+
+        if (options.fresh) {
+          return refreshOrReuse(cacheKey, refresh, entry.data);
+        }
+
+        runInBackground(cacheKey, refresh);
+      }
+
+      return entry.data;
     }
 
-    return entry.data;
-  }
-
-  return refreshOverview(normalized, cacheKey, "latest");
+    return refreshOverview(normalized, cacheKey, "latest");
+  });
 }
 
 const VERSION_PATTERN = /^[0-9a-z][0-9a-z._+-]*$/i;
@@ -601,6 +740,7 @@ export function isValidVersion(version: string): boolean {
 export async function getPackageVersionOverview(
   name: string,
   version: string,
+  options: LoadOptions = {},
 ): Promise<PackageOverview | null> {
   const normalized = normalizePackageName(name);
   const selector = version.trim();
@@ -610,19 +750,33 @@ export async function getPackageVersionOverview(
   }
 
   const cacheKey = versionOverviewCacheKey(normalized, selector);
-  const entry = await cacheGetEntry<PackageOverview>(cacheKey);
 
-  if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
-    if (!isFresh(entry, CACHE_FRESH_TTL.overview)) {
-      runInBackground(cacheKey, async () => {
-        await refreshOverview(normalized, cacheKey, selector);
-      });
+  return coalesce(cacheKey, async () => {
+    const entry = await cacheGetEntry<PackageOverview | null>(cacheKey);
+
+    if (entry && !isExpired(entry, CACHE_HARD_TTL.overview)) {
+      if (entry.data === null) return null;
+
+      const softTtl = options.fresh
+        ? revalidationSafeWindow(CACHE_FRESH_TTL.overview)
+        : CACHE_FRESH_TTL.overview;
+
+      if (!isFresh(entry, softTtl)) {
+        const refresh = () =>
+          refreshOverview(normalized, cacheKey, selector);
+
+        if (options.fresh) {
+          return refreshOrReuse(cacheKey, refresh, entry.data);
+        }
+
+        runInBackground(cacheKey, refresh);
+      }
+
+      return entry.data;
     }
 
-    return entry.data;
-  }
-
-  return refreshOverview(normalized, cacheKey, selector);
+    return refreshOverview(normalized, cacheKey, selector);
+  });
 }
 
 export async function getDownloadTrend(
@@ -671,7 +825,7 @@ async function refreshPackage(
   ]);
 
   if (!packument) {
-    await cacheDelete(cacheKey);
+    await cacheSet(cacheKey, null, CACHE_NEGATIVE_TTL);
     return null;
   }
 
@@ -724,6 +878,7 @@ async function refreshPackage(
 
 export async function getPackage(
   name: string,
+  options: LoadOptions = {},
 ): Promise<PackageDetail | null> {
   const normalized = normalizePackageName(name);
 
@@ -732,17 +887,30 @@ export async function getPackage(
   }
 
   const cacheKey = packageCacheKey(normalized);
-  const entry = await cacheGetEntry<PackageDetail>(cacheKey);
 
-  if (entry && !isExpired(entry, CACHE_HARD_TTL.package)) {
-    if (!isFresh(entry, CACHE_FRESH_TTL.package)) {
-      runInBackground(cacheKey, async () => {
-        await refreshPackage(normalized, cacheKey);
-      });
+  return coalesce(cacheKey, async () => {
+    const entry = await cacheGetEntry<PackageDetail | null>(cacheKey);
+
+    if (entry && !isExpired(entry, CACHE_HARD_TTL.package)) {
+      if (entry.data === null) return null;
+
+      const softTtl = options.fresh
+        ? revalidationSafeWindow(CACHE_FRESH_TTL.package)
+        : CACHE_FRESH_TTL.package;
+
+      if (!isFresh(entry, softTtl)) {
+        const refresh = () => refreshPackage(normalized, cacheKey);
+
+        if (options.fresh) {
+          return refreshOrReuse(cacheKey, refresh, entry.data);
+        }
+
+        runInBackground(cacheKey, refresh);
+      }
+
+      return entry.data;
     }
 
-    return entry.data;
-  }
-
-  return refreshPackage(normalized, cacheKey);
+    return refreshPackage(normalized, cacheKey);
+  });
 }

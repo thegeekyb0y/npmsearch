@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { MaintainerReach } from "@/app/components/profile/maintainer-reach";
+import { IntentLink } from "@/app/components/intent-link";
 import { PackageConstellation } from "@/app/components/profile/package-constellation";
 import { ProfileSigil } from "@/app/components/profile/profile-sigil";
 import { SkeletonBlock } from "@/app/components/skeleton";
@@ -139,7 +140,7 @@ function SpecimenCard({
   accent: string;
 }) {
   return (
-    <Link
+    <IntentLink
       href={`/package/${encodeURIComponent(item.name)}`}
       data-preview-title={item.name}
       data-preview-subtitle={item.description?.trim() || "npm package"}
@@ -180,7 +181,7 @@ function SpecimenCard({
           open →
         </span>
       </div>
-    </Link>
+    </IntentLink>
   );
 }
 
@@ -357,12 +358,12 @@ async function MaintainerBody({
           {top ? (
             <p className="mt-4 mb-0 text-[11px] leading-5 text-text-secondary">
               The brightest node is{" "}
-              <Link
+              <IntentLink
                 href={`/package/${encodeURIComponent(top.name)}`}
                 className="font-mono text-text-primary underline decoration-border-strong underline-offset-4 hover:text-brand"
               >
                 {top.name}
-              </Link>
+              </IntentLink>
               . Node size is its weekly download count, not a quality score.
             </p>
           ) : null}
@@ -377,12 +378,12 @@ async function MaintainerBody({
                 {leaders.map((item, index) => (
                   <li key={item.name}>
                     <div className="flex items-baseline justify-between gap-3 font-mono text-[10px]">
-                      <Link
+                      <IntentLink
                         href={`/package/${encodeURIComponent(item.name)}`}
                         className="min-w-0 truncate text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary"
                       >
                         {item.name}
-                      </Link>
+                      </IntentLink>
                       <span className="shrink-0 tabular-nums text-text-muted">
                         {formatCompactNumber(item.weekly)}
                       </span>
